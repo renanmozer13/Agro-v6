@@ -1,0 +1,9 @@
+{
+  "name": "AGROBRASIL  6,0",
+  "description": "Assistente inteligente para agricultores com diagnóstico visual de plantas e controle de cultivo via IA.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
+}
