@@ -1,8 +1,14 @@
 import { GoogleGenAI, Modality, Type } from "@google/genai";
 import { Message, MessageRole, CropPlan, UserLocation } from '../types';
 
+// Modelo 1.5 Flash: O mais estável e rápido para o plano gratuito
 const MODEL_NAME = 'gemini-1.5-flash';
 const TTS_MODEL_NAME = 'gemini-1.5-flash';
+
+// Função auxiliar para pegar a chave de forma robusta
+const getApiKey = () => {
+  return import.meta.env.VITE_GEMINI_API_KEY || '';
+};
 
 export const sendMessageToGemini = async (
   history: Message[],
@@ -11,10 +17,10 @@ export const sendMessageToGemini = async (
   location?: UserLocation | null
 ): Promise<string> => {
   try {
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
+    const apiKey = getApiKey();
     
-    if (!apiKey) {
-      return "Atenção: A chave VITE_GEMINI_API_KEY não foi encontrada. Verifique as variáveis na Vercel e faça um novo Deploy.";
+    if (!apiKey || apiKey.length < 10) {
+      return "Atenção: A chave VITE_GEMINI_API_KEY não foi encontrada. Verifique se você salvou a variável na Vercel e se o arquivo vite.config.ts foi atualizado corretamente.";
     }
 
     const ai = new GoogleGenAI({ apiKey });
@@ -60,7 +66,9 @@ export const sendMessageToGemini = async (
 export const generateSpeechFromText = async (text: string): Promise<string | null> => {
   try {
     if (!text) return null;
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
+    const apiKey = getApiKey();
+    if (!apiKey) return null;
+
     const ai = new GoogleGenAI({ apiKey });
     const cleanText = text.replace(/[*#]/g, '').substring(0, 800);
 
@@ -117,7 +125,7 @@ const cropPlanSchema = {
 
 export const generateCropPlan = async (cropInput: string, location?: UserLocation | null): Promise<CropPlan | null> => {
   try {
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
+    const apiKey = getApiKey();
     const ai = new GoogleGenAI({ apiKey });
     let prompt = `Gere um relatório técnico de planejamento de safra para a cultura: ${cropInput}.`;
 
