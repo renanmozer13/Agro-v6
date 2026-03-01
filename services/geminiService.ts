@@ -1,21 +1,9 @@
 import { GoogleGenAI, Modality, Type } from "@google/genai";
 import { Message, MessageRole, CropPlan, UserLocation } from '../types';
 
-// Modelos
-const MODEL_NAME = 'gemini-3-flash-preview';
-const TTS_MODEL_NAME = 'gemini-2.5-flash-preview-tts';
-
-// Instrução do Sistema (Mantendo seu tom de voz original)
-const SYSTEM_INSTRUCTION = `
-Você é o IAC Farm, um assistente agronômico de elite, mas com um jeito "caipira moderno" e bem-humorado.
-Seu objetivo é ajudar agricultores a cuidar de suas lavouras e plantas com precisão técnica e simpatia.
-
-Diretrizes:
-1. **Identificação Visual**: Analise detalhadamente folhas, caules e solo.
-2. **Diagnóstico**: Dê o nome científico e comum.
-3. **Solução**: Plano de ação passo a passo.
-4. **Tom de Voz**: Amigável e caipira moderno.
-`;
+// Modelo 1.5 Flash: O mais estável e compatível para contas gratuitas
+const MODEL_NAME = 'gemini-1.5-flash';
+const TTS_MODEL_NAME = 'gemini-1.5-flash'; // Usando o mesmo para estabilidade
 
 export const sendMessageToGemini = async (
   history: Message[],
@@ -24,16 +12,19 @@ export const sendMessageToGemini = async (
   location?: UserLocation | null
 ): Promise<string> => {
   try {
-    // Pega a chave da Vercel ou do ambiente local
+    // Tenta ler de várias formas para garantir que funcione na Vercel
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
-    if (!apiKey) throw new Error("Chave de API não encontrada");
+    
+    if (!apiKey) {
+      return "Atenção: A chave VITE_GEMINI_API_KEY não foi encontrada no sistema. Verifique se você salvou a variável na Vercel e fez um novo Deploy.";
+    }
 
     const ai = new GoogleGenAI({ apiKey });
     const currentParts: any[] = [];
     let textToSend = newMessage || '';
     
     if (location) {
-        textToSend += `\n\n[SISTEMA]: Lat: ${location.lat}, Long: ${location.lng}.`;
+        textToSend += `\n\n[SISTEMA]: Localização do usuário: Lat: ${location.lat}, Long: ${location.lng}.`;
     }
 
     if (attachment) {
@@ -53,17 +44,17 @@ export const sendMessageToGemini = async (
 
     const chat = ai.chats.create({
       model: MODEL_NAME,
-      config: { systemInstruction: SYSTEM_INSTRUCTION },
+      config: { 
+        systemInstruction: "Você é o IAC Farm, um assistente agronômico simpático e técnico. Ajude o agricultor com diagnósticos e planos de safra." 
+      },
       history: contents
     });
 
     const result = await chat.sendMessage({ message: currentParts });
-    return result.text || "Opa, não consegui processar agora.";
+    return result.text || "Opa, recebi uma resposta vazia. Tente novamente.";
 
-  } catch (error) {
-    console.error("Erro Gemini:", error);
-    return "Eita, tive um problema com a minha chave de inteligência. Verifique se a VITE_GEMINI_API_KEY na Vercel está correta.";
+  } catch (error: any) {
+    console.error("Erro detalhado:", error);
+    return `Erro na IA: ${error.message || 'Erro desconhecido'}. Verifique se sua chave do Gemini está ativa.`;
   }
 };
-
-// ... (Mantenha as outras funções generateSpeechFromText e generateCropPlan como estavam)
