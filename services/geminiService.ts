@@ -1,9 +1,24 @@
 import { GoogleGenAI, Modality, Type } from "@google/genai";
 import { Message, MessageRole, CropPlan, UserLocation } from '../types';
 
-// Alterado para o nome mais universal e estável
-const MODEL_NAME = 'gemini-flash-latest';
-const TTS_MODEL_NAME = 'gemini-flash-latest';
+// Modelo Gemini 3 Flash: O mais moderno, rápido e disponível no plano gratuito
+const MODEL_NAME = 'gemini-3-flash-preview';
+const TTS_MODEL_NAME = 'gemini-2.5-flash-preview-tts';
+
+// Função segura para ler a chave da Vercel
+const getApiKey = () => {
+  return import.meta.env.VITE_GEMINI_API_KEY || '';
+};
+
+const SYSTEM_INSTRUCTION = `
+Você é o IAC Farm, um assistente agronômico de elite, mas com um jeito "caipira moderno" e bem-humorado.
+Seu objetivo é ajudar agricultores a cuidar de suas lavouras e plantas com precisão técnica e simpatia.
+
+Diretrizes:
+1. **Identificação Visual**: Analise detalhadamente as folhas, caules e solo visíveis. Identifique pragas, doenças ou deficiências nutricionais.
+2. **Solução Prática**: Forneça um plano de ação passo a passo. Priorize soluções sustentáveis.
+3. **Tom de Voz**: Use um tom amigável, encorajador e levemente bem-humorado (caipira moderno).
+`;
 
 export const sendMessageToGemini = async (
   history: Message[],
@@ -12,10 +27,9 @@ export const sendMessageToGemini = async (
   location?: UserLocation | null
 ): Promise<string> => {
   try {
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
-    
+    const apiKey = getApiKey();
     if (!apiKey) {
-      return "Atenção: A chave VITE_GEMINI_API_KEY não foi encontrada. Verifique as variáveis na Vercel.";
+      return "Atenção: A chave VITE_GEMINI_API_KEY não foi encontrada. Verifique as variáveis na Vercel e faça um novo Deploy.";
     }
 
     const ai = new GoogleGenAI({ apiKey });
@@ -41,13 +55,10 @@ export const sendMessageToGemini = async (
             parts: [{ text: msg.content || ' ' }]
         }));
 
-    // Usando o método correto para a versão mais comum da biblioteca
     const response = await ai.models.generateContent({
       model: MODEL_NAME,
       contents: { parts: currentParts },
-      config: { 
-        systemInstruction: "Você é o IAC Farm, um assistente agronômico simpático e técnico. Ajude o agricultor com diagnósticos e planos de safra." 
-      }
+      config: { systemInstruction: SYSTEM_INSTRUCTION }
     });
 
     return response.text || "Opa, não consegui processar agora.";
@@ -58,4 +69,81 @@ export const sendMessageToGemini = async (
   }
 };
 
-// ... (Mantenha o restante das funções)
+export const generateSpeechFromText = async (text: string): Promise<string | null> => {
+  try {
+    if (!text) return null;
+    const apiKey = getApiKey();
+    const ai = new GoogleGenAI({ apiKey });
+    const cleanText = text.replace(/[*#]/g, '').substring(0, 800);
+
+    const response = await ai.models.generateContent({
+      model: TTS_MODEL_NAME,
+      contents: { parts: [{ text: cleanText }] },
+      config: {
+        responseModalities: [Modality.AUDIO],
+        speechConfig: {
+            voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } },
+        },
+      },
+    });
+
+    return response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data || null;
+  } catch (error) {
+    return null;
+  }
+};
+
+const cropPlanSchema = {
+  type: Type.OBJECT,
+  properties: {
+    cropName: { type: Type.STRING },
+    scientificName: { type: Type.STRING },
+    description: { type: Type.STRING },
+    bestSeason: { type: Type.STRING },
+    cycleDuration: { type: Type.STRING },
+    cycleDaysMin: { type: Type.INTEGER },
+    cycleDaysMax: { type: Type.INTEGER },
+    soilRequirements: {
+      type: Type.OBJECT,
+      properties: { ph: { type: Type.STRING }, texture: { type: Type.STRING }, nutrientFocus: { type: Type.STRING } }
+    },
+    soilData: {
+      type: Type.OBJECT,
+      properties: { nitrogen: { type: Type.INTEGER }, phosphorus: { type: Type.INTEGER }, potassium: { type: Type.INTEGER }, phValue: { type: Type.NUMBER } },
+      required: ["nitrogen", "phosphorus", "potassium", "phValue"]
+    },
+    irrigation: { type: Type.OBJECT, properties: { frequency: { type: Type.STRING }, method: { type: Type.STRING } } },
+    plantingSteps: { type: Type.ARRAY, items: { type: Type.STRING } },
+    commonPests: { type: Type.ARRAY, items: { type: Type.STRING } },
+    seasonalRisks: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: { period: { type: Type.STRING }, stage: { type: Type.STRING }, risks: { type: Type.ARRAY, items: { type: Type.STRING } }, prevention: { type: Type.STRING } }
+      }
+    },
+    harvestIndicators: { type: Type.STRING }
+  },
+  required: ["cropName", "bestSeason", "cycleDuration", "cycleDaysMin", "cycleDaysMax", "plantingSteps", "irrigation", "soilRequirements", "soilData", "seasonalRisks"]
+};
+
+export const generateCropPlan = async (cropInput: string, location?: UserLocation | null): Promise<CropPlan | null> => {
+  try {
+    const apiKey = getApiKey();
+    const ai = new GoogleGenAI({ apiKey });
+    let prompt = `Gere um relatório técnico de planejamento de safra para a cultura: ${cropInput}.`;
+
+    const response = await ai.models.generateContent({
+      model: MODEL_NAME,
+      contents: { parts: [{ text: prompt }] },
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: cropPlanSchema,
+      }
+    });
+
+    return JSON.parse(response.text) as CropPlan;
+  } catch (error) {
+    return null;
+  }
+};
