@@ -1,14 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Buscamos as chaves com segurança
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
-const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const url = import.meta.env.VITE_SUPABASE_URL || '';
+const key = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
-// Criamos o cliente apenas se as chaves existirem, para evitar a TELA BRANCA
-export const supabase = (SUPABASE_URL && SUPABASE_KEY) 
-  ? createClient(SUPABASE_URL, SUPABASE_KEY)
+// Só inicializa se a URL for válida. Evita tela branca.
+export const supabase = (url && url.startsWith('http')) 
+  ? createClient(url, key) 
   : null as any;
 
 if (!supabase) {
-  console.warn("Aviso: Supabase não inicializado. Verifique as chaves VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY na Vercel.");
+  console.warn("Aviso: Supabase não inicializado. Verifique VITE_SUPABASE_URL na Vercel.");
 }
