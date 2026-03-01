@@ -1,9 +1,12 @@
 import { GoogleGenAI, Modality, Type } from "@google/genai";
 import { Message, MessageRole, CropPlan, UserLocation } from '../types';
 
-// Modelos utilizados
-const MODEL_NAME = 'gemini-3-pro-preview';
+// Modelos utilizados - Flash é ideal para a versão gratuita (mais rápido e estável)
+const MODEL_NAME = 'gemini-3-flash-preview';
 const TTS_MODEL_NAME = 'gemini-2.5-flash-preview-tts';
+
+// Pega a chave de forma segura no Vite/Vercel
+const getApiKey = () => import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || '';
 
 const SYSTEM_INSTRUCTION = `
 Você é o IAC Farm, um assistente agronômico de elite, mas com um jeito "caipira moderno" e bem-humorado.
@@ -25,8 +28,10 @@ export const sendMessageToGemini = async (
   location?: UserLocation | null
 ): Promise<string> => {
   try {
-    // Inicializa o cliente apenas no momento do envio para garantir que process.env.API_KEY esteja disponível
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const apiKey = getApiKey();
+    if (!apiKey) throw new Error("API_KEY_MISSING");
+
+    const ai = new GoogleGenAI({ apiKey });
     
     const currentParts: any[] = [];
     let textToSend = newMessage || '';
@@ -64,16 +69,17 @@ export const sendMessageToGemini = async (
     const result = await chat.sendMessage({ message: currentParts });
     return result.text || "Opa, não consegui processar agora.";
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Erro na API Gemini:", error);
-    return "Eita, tive um problema com a minha chave de inteligência. Verifique se a API_KEY na Vercel está correta.";
+    return "Eita, tive um problema com a minha chave de inteligência. Verifique se a VITE_GEMINI_API_KEY na Vercel está correta e se o projeto tem faturamento ativo.";
   }
 };
 
 export const generateSpeechFromText = async (text: string): Promise<string | null> => {
   try {
     if (!text) return null;
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const apiKey = getApiKey();
+    const ai = new GoogleGenAI({ apiKey });
     const cleanText = text.replace(/[*#]/g, '').substring(0, 800);
 
     const response = await ai.models.generateContent({
@@ -129,7 +135,8 @@ const cropPlanSchema = {
 
 export const generateCropPlan = async (cropInput: string, location?: UserLocation | null): Promise<CropPlan | null> => {
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const apiKey = getApiKey();
+    const ai = new GoogleGenAI({ apiKey });
     let prompt = `Gere um relatório técnico de planejamento de safra para a cultura: ${cropInput}.`;
 
     const response = await ai.models.generateContent({
