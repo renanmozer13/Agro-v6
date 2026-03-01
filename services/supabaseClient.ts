@@ -1,11 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 
-// URL confirmada via print: hoepznsyzdlrzzlrlurp
-const SUPABASE_URL = 'https://hoepznsyzdlrzzlrlurp.supabase.co';
+// Usando variáveis de ambiente para segurança total
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
-// IMPORTANTE: Esta é a chave anon padrão. 
-// Se o sistema carregar mas não salvar nada, você deve copiar a sua 'anon' key 
-// do painel do Supabase (Settings -> API) e colar abaixo.
-const SUPABASE_KEY = 'sb_publishable_Dwes-IIwixCZorkCSTAUdA_ZwWmSV8T';
+if (!SUPABASE_URL || !SUPABASE_KEY) {
+    console.error("ERRO: Credenciais do Supabase não encontradas. Verifique VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY na Vercel.");
+}
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
