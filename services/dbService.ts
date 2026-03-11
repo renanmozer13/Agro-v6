@@ -1,6 +1,14 @@
 
 import { supabase } from './supabaseClient';
-import { IdentifiedPlant, CropPlan } from '../types';
+import { 
+  IdentifiedPlant, 
+  CropPlan, 
+  ProfessionalClient, 
+  ProfessionalPrescription, 
+  SeasonalRecommendation, 
+  ConsumerProduct,
+  NutritionPlan
+} from '../types';
 
 export const dbService = {
   /**
@@ -86,7 +94,6 @@ export const dbService = {
         date: new Date(r.date).toLocaleDateString('pt-BR'),
         imageUrl: r.image_url,
         healthStatus: r.health_status,
-        // Fixed: Mapping diagnosis_summary from DB to diagnosisSummary property required by IdentifiedPlant interface
         diagnosisSummary: r.diagnosis_summary,
         fullDiagnosis: r.full_diagnosis,
         confidence: r.confidence,
@@ -114,6 +121,102 @@ export const dbService = {
       return !error;
     } catch (error) {
       console.error("Erro ao salvar plano:", error);
+      return false;
+    }
+  },
+
+  // --- PROFESSIONAL HUB METHODS ---
+
+  async getProfessionalClients(professionalId: string): Promise<ProfessionalClient[]> {
+    try {
+      const { data, error } = await supabase
+        .from('professional_clients')
+        .select('*')
+        .eq('professional_id', professionalId);
+      if (error) throw error;
+      return data.map(r => ({
+        id: r.id,
+        name: r.name,
+        goal: r.goal,
+        lastUpdate: r.last_update,
+        status: r.status,
+        score: r.score,
+        professionalId: r.professional_id
+      }));
+    } catch (error) {
+      console.error("Error fetching professional clients:", error);
+      return [];
+    }
+  },
+
+  async saveProfessionalPrescription(prescription: Omit<ProfessionalPrescription, 'id' | 'createdAt'>): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from('professional_prescriptions')
+        .insert([{
+          client_id: prescription.clientId,
+          professional_id: prescription.professionalId,
+          title: prescription.title,
+          description: prescription.description,
+          items: prescription.items
+        }]);
+      return !error;
+    } catch (error) {
+      console.error("Error saving prescription:", error);
+      return false;
+    }
+  },
+
+  async getSeasonalRecommendations(): Promise<SeasonalRecommendation[]> {
+    try {
+      const { data, error } = await supabase
+        .from('seasonal_recommendations')
+        .select('*');
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error("Error fetching seasonal recommendations:", error);
+      return [];
+    }
+  },
+
+  // --- CONSUMER HUB METHODS ---
+
+  async getConsumerProducts(): Promise<ConsumerProduct[]> {
+    try {
+      const { data, error } = await supabase
+        .from('consumer_products')
+        .select('*');
+      if (error) throw error;
+      return data.map(r => ({
+        id: r.id,
+        name: r.name,
+        price: r.price,
+        producer: r.producer,
+        rating: r.rating,
+        category: r.category,
+        isOrganic: r.is_organic
+      }));
+    } catch (error) {
+      console.error("Error fetching consumer products:", error);
+      return [];
+    }
+  },
+
+  async saveNutritionPlan(plan: Omit<NutritionPlan, 'id'>, userId: string): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from('nutrition_plans')
+        .insert([{
+          user_id: userId,
+          title: plan.title,
+          goal: plan.goal,
+          daily_meals: plan.dailyMeals,
+          seasonal_focus: plan.seasonalFocus
+        }]);
+      return !error;
+    } catch (error) {
+      console.error("Error saving nutrition plan:", error);
       return false;
     }
   }

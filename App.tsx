@@ -5,6 +5,7 @@ import { sendMessageToGemini, generateSpeechFromText } from './services/geminiSe
 import { fetchLocalWeather } from './services/weatherService';
 import { playRawAudio } from './utils/audioUtils';
 import { dbService } from './services/dbService';
+import { supabase } from './services/supabaseClient';
 
 // Components
 import Sidebar from './components/Sidebar';
@@ -55,6 +56,29 @@ const App: React.FC = () => {
   const [userRole, setUserRole] = useState<UserRole>(UserRole.CONSUMER);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [view, setView] = useState<ViewMode | 'registry'>('chat');
+
+  useEffect(() => {
+    const testConnection = async () => {
+      try {
+        const { error } = await supabase.from('plants').select('id').limit(1);
+        if (error) {
+          console.error("Erro na conexão com Supabase:", error.message);
+          if (error.message.includes('Failed to fetch')) {
+            console.error("DICA: Verifique se a URL do Supabase está correta e se o projeto está ativo.");
+          }
+          if (error.message.includes('JWT')) {
+            console.error("DICA: A chave ANON do Supabase parece inválida.");
+          }
+        } else {
+          console.log("Conexão com Supabase estabelecida com sucesso.");
+        }
+      } catch (e) {
+        console.error("Falha fatal ao conectar ao Supabase:", e);
+        console.error("Certifique-se de configurar VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY nas configurações do projeto.");
+      }
+    };
+    testConnection();
+  }, []);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);

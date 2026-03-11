@@ -11,7 +11,12 @@ import {
   Activity,
   Award,
   Apple,
-  Dumbbell
+  Dumbbell,
+  Plus,
+  ArrowRight,
+  CheckCircle2,
+  Clock,
+  AlertCircle
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -26,51 +31,56 @@ import {
   AreaChart,
   Area
 } from 'recharts';
-
-const CLIENTS_DATA = [
-  { id: '1', name: 'João Silva', goal: 'Hipertrofia', lastUpdate: '2 dias atrás', status: 'Em progresso', score: 85 },
-  { id: '2', name: 'Maria Oliveira', goal: 'Emagrecimento', lastUpdate: 'Hoje', status: 'Excelente', score: 92 },
-  { id: '3', name: 'Carlos Santos', goal: 'Performance (Maratona)', lastUpdate: '1 semana atrás', status: 'Atenção', score: 68 },
-  { id: '4', name: 'Ana Costa', goal: 'Saúde Geral', lastUpdate: '3 dias atrás', status: 'Estável', score: 75 },
-];
-
-const SEASONAL_RECOMMENDATIONS = [
-  { 
-    id: 's1', 
-    product: 'Batata Doce Roxa', 
-    benefit: 'Baixo índice glicêmico, ideal para pré-treino de longa duração.', 
-    season: 'Alta Safra (Março)', 
-    source: 'Fazenda Santa Maria',
-    tags: ['Energia', 'Resistência']
-  },
-  { 
-    id: 's2', 
-    product: 'Espinafre Orgânico', 
-    benefit: 'Rico em nitratos, melhora a eficiência mitocondrial e oxigenação.', 
-    season: 'Safra Local', 
-    source: 'Horta Comunitária IAC',
-    tags: ['Performance', 'Recuperação']
-  },
-  { 
-    id: 's3', 
-    product: 'Abacate Hass', 
-    benefit: 'Gorduras boas para suporte hormonal e saciedade prolongada.', 
-    season: 'Início de Safra', 
-    source: 'Pomar Vale Verde',
-    tags: ['Hormonal', 'Saciedade']
-  },
-];
-
-const PERFORMANCE_DATA = [
-  { month: 'Jan', performance: 65, compliance: 70 },
-  { month: 'Fev', performance: 72, compliance: 75 },
-  { month: 'Mar', performance: 85, compliance: 82 },
-  { month: 'Abr', performance: 80, compliance: 88 },
-];
+import { dbService } from '../services/dbService';
+import { ProfessionalClient, SeasonalRecommendation } from '../types';
 
 const ProfessionalHub: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'clients' | 'recommendations' | 'analytics'>('clients');
+  const [clients, setClients] = useState<ProfessionalClient[]>([]);
+  const [recommendations, setRecommendations] = useState<SeasonalRecommendation[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true);
+      const professionalId = 'demo-prof-123';
+      const [clientsData, recsData] = await Promise.all([
+        dbService.getProfessionalClients(professionalId),
+        dbService.getSeasonalRecommendations()
+      ]);
+      
+      if (clientsData.length === 0) {
+        setClients([
+          { id: '1', name: 'João Silva', goal: 'Hipertrofia', lastUpdate: '2 dias atrás', status: 'Em progresso', score: 85, professionalId },
+          { id: '2', name: 'Maria Oliveira', goal: 'Emagrecimento', lastUpdate: 'Hoje', status: 'Excelente', score: 92, professionalId },
+          { id: '3', name: 'Carlos Santos', goal: 'Performance (Maratona)', lastUpdate: '1 semana atrás', status: 'Atenção', score: 68, professionalId },
+          { id: '4', name: 'Ana Costa', goal: 'Saúde Geral', lastUpdate: '3 dias atrás', status: 'Estável', score: 75, professionalId },
+        ]);
+      } else {
+        setClients(clientsData);
+      }
+
+      if (recsData.length === 0) {
+        setRecommendations([
+          { id: 's1', product: 'Batata Doce Roxa', benefit: 'Baixo índice glicêmico, ideal para pré-treino de longa duração.', season: 'Alta Safra (Março)', source: 'Fazenda Santa Maria', tags: ['Energia', 'Resistência'] },
+          { id: 's2', product: 'Espinafre Orgânico', benefit: 'Rico em nitratos, melhora a eficiência mitocondrial e oxigenação.', season: 'Safra Local', source: 'Horta Comunitária IAC', tags: ['Performance', 'Recuperação'] },
+          { id: 's3', product: 'Abacate Hass', benefit: 'Gorduras boas para suporte hormonal e saciedade prolongada.', season: 'Início de Safra', source: 'Pomar Vale Verde', tags: ['Hormonal', 'Saciedade'] },
+        ]);
+      } else {
+        setRecommendations(recsData);
+      }
+      setIsLoading(false);
+    };
+    fetchData();
+  }, []);
+
+  const PERFORMANCE_DATA = [
+    { month: 'Jan', performance: 65, compliance: 70 },
+    { month: 'Fev', performance: 72, compliance: 75 },
+    { month: 'Mar', performance: 85, compliance: 82 },
+    { month: 'Abr', performance: 80, compliance: 88 },
+  ];
 
   return (
     <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-stone-50 dark:bg-stone-950 animate-fade-in">
@@ -133,52 +143,59 @@ const ProfessionalHub: React.FC = () => {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {CLIENTS_DATA.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase())).map(client => (
-                <div key={client.id} className="bg-white dark:bg-stone-900 p-6 rounded-3xl border border-stone-100 dark:border-stone-800 shadow-sm hover:shadow-md transition-all group">
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-stone-100 dark:bg-stone-800 rounded-2xl flex items-center justify-center text-stone-600 dark:text-stone-400 font-bold text-xl">
-                        {client.name.charAt(0)}
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center py-20 gap-4">
+                <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                <p className="text-stone-500 font-bold animate-pulse">Sincronizando com o campo...</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {clients.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase())).map(client => (
+                  <div key={client.id} className="bg-white dark:bg-stone-900 p-6 rounded-3xl border border-stone-100 dark:border-stone-800 shadow-sm hover:shadow-md transition-all group">
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-stone-100 dark:bg-stone-800 rounded-2xl flex items-center justify-center text-stone-600 dark:text-stone-400 font-bold text-xl">
+                          {client.name.charAt(0)}
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-stone-900 dark:text-white text-lg">{client.name}</h3>
+                          <p className="text-xs text-stone-500 font-medium">{client.goal}</p>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="font-bold text-stone-900 dark:text-white text-lg">{client.name}</h3>
-                        <p className="text-xs text-stone-500 font-medium">{client.goal}</p>
-                      </div>
-                    </div>
-                    <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                      client.status === 'Excelente' ? 'bg-emerald-100 text-emerald-700' : 
-                      client.status === 'Atenção' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
-                    }`}>
-                      {client.status}
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-end">
-                      <div>
-                        <p className="text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-1">Compliance Nutricional</p>
-                        <p className="text-2xl font-black text-stone-800 dark:text-white">{client.score}%</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-1">Última Atualização</p>
-                        <p className="text-xs font-bold text-stone-600 dark:text-stone-300">{client.lastUpdate}</p>
+                      <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                        client.status === 'Excelente' ? 'bg-emerald-100 text-emerald-700' : 
+                        client.status === 'Atenção' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
+                      }`}>
+                        {client.status}
                       </div>
                     </div>
-                    <div className="w-full bg-stone-100 dark:bg-stone-800 h-2 rounded-full overflow-hidden">
-                      <div 
-                        className={`h-full transition-all duration-1000 ${client.score > 80 ? 'bg-emerald-500' : client.score > 70 ? 'bg-blue-500' : 'bg-amber-500'}`}
-                        style={{ width: `${client.score}%` }}
-                      />
+                    
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-end">
+                        <div>
+                          <p className="text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-1">Compliance Nutricional</p>
+                          <p className="text-2xl font-black text-stone-800 dark:text-white">{client.score}%</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-1">Última Atualização</p>
+                          <p className="text-xs font-bold text-stone-600 dark:text-stone-300">{client.lastUpdate}</p>
+                        </div>
+                      </div>
+                      <div className="w-full bg-stone-100 dark:bg-stone-800 h-2 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full transition-all duration-1000 ${client.score > 80 ? 'bg-emerald-500' : client.score > 70 ? 'bg-blue-500' : 'bg-amber-500'}`}
+                          style={{ width: `${client.score}%` }}
+                        />
+                      </div>
                     </div>
-                  </div>
 
-                  <button className="w-full mt-6 py-3 bg-stone-50 dark:bg-stone-800 hover:bg-indigo-600 hover:text-white dark:hover:bg-indigo-600 text-indigo-600 dark:text-indigo-400 rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-2 group-hover:bg-indigo-600 group-hover:text-white">
-                    Ver Prontuário Completo <ChevronRight size={16} />
-                  </button>
-                </div>
-              ))}
-            </div>
+                    <button className="w-full mt-6 py-3 bg-stone-50 dark:bg-stone-800 hover:bg-indigo-600 hover:text-white dark:hover:bg-indigo-600 text-indigo-600 dark:text-indigo-400 rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-2 group-hover:bg-indigo-600 group-hover:text-white">
+                      Ver Prontuário Completo <ChevronRight size={16} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -197,36 +214,43 @@ const ProfessionalHub: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {SEASONAL_RECOMMENDATIONS.map(rec => (
-                <div key={rec.id} className="bg-white dark:bg-stone-900 p-6 rounded-3xl border border-stone-100 dark:border-stone-800 shadow-sm flex flex-col">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl flex items-center justify-center">
-                      <Apple size={20} />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-stone-900 dark:text-white">{rec.product}</h3>
-                      <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">{rec.season}</p>
-                    </div>
-                  </div>
-                  <p className="text-sm text-stone-600 dark:text-stone-400 mb-6 flex-1">{rec.benefit}</p>
-                  <div className="flex flex-wrap gap-2 mb-6">
-                    {rec.tags.map(tag => (
-                      <span key={tag} className="px-2 py-1 bg-stone-100 dark:bg-stone-800 text-stone-500 dark:text-stone-400 rounded-lg text-[10px] font-bold uppercase tracking-wider">{tag}</span>
-                    ))}
-                  </div>
-                  <div className="pt-4 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 bg-stone-100 dark:bg-stone-800 rounded-full flex items-center justify-center">
-                        <Calendar size={12} className="text-stone-400" />
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center py-20 gap-4">
+                <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+                <p className="text-stone-500 font-bold animate-pulse">Buscando melhores safras...</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {recommendations.map(rec => (
+                  <div key={rec.id} className="bg-white dark:bg-stone-900 p-6 rounded-3xl border border-stone-100 dark:border-stone-800 shadow-sm flex flex-col">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-10 h-10 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl flex items-center justify-center">
+                        <Apple size={20} />
                       </div>
-                      <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">{rec.source}</span>
+                      <div>
+                        <h3 className="font-bold text-stone-900 dark:text-white">{rec.product}</h3>
+                        <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">{rec.season}</p>
+                      </div>
                     </div>
-                    <button className="text-indigo-600 dark:text-indigo-400 font-bold text-xs hover:underline">Prescrever</button>
+                    <p className="text-sm text-stone-600 dark:text-stone-400 mb-6 flex-1">{rec.benefit}</p>
+                    <div className="flex flex-wrap gap-2 mb-6">
+                      {rec.tags.map(tag => (
+                        <span key={tag} className="px-2 py-1 bg-stone-100 dark:bg-stone-800 text-stone-500 dark:text-stone-400 rounded-lg text-[10px] font-bold uppercase tracking-wider">{tag}</span>
+                      ))}
+                    </div>
+                    <div className="pt-4 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 bg-stone-100 dark:bg-stone-800 rounded-full flex items-center justify-center">
+                          <Calendar size={12} className="text-stone-400" />
+                        </div>
+                        <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">{rec.source}</span>
+                      </div>
+                      <button className="text-indigo-600 dark:text-indigo-400 font-bold text-xs hover:underline">Prescrever</button>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
 
             <div className="bg-white dark:bg-stone-900 p-8 rounded-3xl border border-stone-100 dark:border-stone-800 shadow-sm">
               <div className="flex items-center gap-4 mb-8">

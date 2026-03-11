@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   HeartPulse, 
   Search, 
@@ -14,6 +14,8 @@ import {
   Apple,
   Zap
 } from 'lucide-react';
+import { dbService } from '../services/dbService';
+import { ConsumerProduct } from '../types';
 
 const MOCK_NUTRITION_PLAN = {
   title: "Plano Detox & Energia",
@@ -29,6 +31,27 @@ const MOCK_NUTRITION_PLAN = {
 
 const ConsumerHub: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'find' | 'nutrition'>('find');
+  const [products, setProducts] = useState<ConsumerProduct[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      setIsLoading(true);
+      const data = await dbService.getConsumerProducts();
+      if (data.length === 0) {
+        setProducts([
+          { id: '1', name: 'Cesta Orgânica Família', price: 'R$ 85,00', producer: 'Sítio Recanto Verde', rating: 4.9, category: 'Cestas', isOrganic: true },
+          { id: '2', name: 'Mel de Flor de Laranjeira', price: 'R$ 32,00', producer: 'Apicultura Macacu', rating: 5.0, category: 'Mel', isOrganic: true },
+          { id: '3', name: 'Ovos Caipira (Dúzia)', price: 'R$ 18,00', producer: 'Fazenda Boa Vista', rating: 4.8, category: 'Ovos', isOrganic: true },
+          { id: '4', name: 'Kombucha de Morango', price: 'R$ 15,00', producer: 'BioBebidas Local', rating: 4.7, category: 'Bebidas', isOrganic: true },
+        ]);
+      } else {
+        setProducts(data);
+      }
+      setIsLoading(false);
+    };
+    fetchProducts();
+  }, []);
 
   return (
     <div className="flex flex-col h-full bg-[#FDFBF7] overflow-hidden">
@@ -83,31 +106,32 @@ const ConsumerHub: React.FC = () => {
                   Destaques Orgânicos da Região
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {[
-                    { name: 'Cesta Orgânica Família', price: 'R$ 85,00', producer: 'Sítio Recanto Verde', rating: 4.9 },
-                    { name: 'Mel de Flor de Laranjeira', price: 'R$ 32,00', producer: 'Apicultura Macacu', rating: 5.0 },
-                    { name: 'Ovos Caipira (Dúzia)', price: 'R$ 18,00', producer: 'Fazenda Boa Vista', rating: 4.8 },
-                    { name: 'Kombucha de Morango', price: 'R$ 15,00', producer: 'BioBebidas Local', rating: 4.7 },
-                  ].map((item, idx) => (
-                    <div key={idx} className="bg-white border border-stone-200 rounded-2xl p-4 hover:border-rose-500 transition-all cursor-pointer group shadow-sm">
-                      <div className="flex justify-between items-start mb-3">
-                        <div className="w-12 h-12 bg-stone-100 rounded-xl flex items-center justify-center text-rose-500 group-hover:bg-rose-50 transition-colors">
-                          <Leaf size={24} />
-                        </div>
-                        <div className="flex items-center gap-1 text-amber-500 text-xs font-bold">
-                          <Star size={12} fill="currentColor" /> {item.rating}
-                        </div>
-                      </div>
-                      <h4 className="font-black text-stone-900 mb-1">{item.name}</h4>
-                      <p className="text-xs text-stone-500 mb-4">{item.producer}</p>
-                      <div className="flex items-center justify-between">
-                        <span className="text-lg font-black text-rose-600">{item.price}</span>
-                        <button className="p-2 bg-stone-50 rounded-xl text-stone-400 group-hover:text-rose-600 group-hover:bg-rose-50 transition-all">
-                          <ArrowRight size={18} />
-                        </button>
-                      </div>
+                  {isLoading ? (
+                    <div className="col-span-2 flex justify-center py-10">
+                      <div className="w-8 h-8 border-4 border-rose-500 border-t-transparent rounded-full animate-spin"></div>
                     </div>
-                  ))}
+                  ) : (
+                    products.map((item) => (
+                      <div key={item.id} className="bg-white border border-stone-200 rounded-2xl p-4 hover:border-rose-500 transition-all cursor-pointer group shadow-sm">
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="w-12 h-12 bg-stone-100 rounded-xl flex items-center justify-center text-rose-500 group-hover:bg-rose-50 transition-colors">
+                            <Leaf size={24} />
+                          </div>
+                          <div className="flex items-center gap-1 text-amber-500 text-xs font-bold">
+                            <Star size={12} fill="currentColor" /> {item.rating}
+                          </div>
+                        </div>
+                        <h4 className="font-black text-stone-900 mb-1">{item.name}</h4>
+                        <p className="text-xs text-stone-500 mb-4">{item.producer}</p>
+                        <div className="flex items-center justify-between">
+                          <span className="text-lg font-black text-rose-600">{item.price}</span>
+                          <button className="p-2 bg-stone-50 rounded-xl text-stone-400 group-hover:text-rose-600 group-hover:bg-rose-50 transition-all">
+                            <ArrowRight size={18} />
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
 

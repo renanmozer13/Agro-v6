@@ -156,6 +156,45 @@ export interface NutritionPlan {
   seasonalFocus: string[];
 }
 
+export interface ProfessionalClient {
+  id: string;
+  name: string;
+  goal: string;
+  lastUpdate: string;
+  status: 'Excelente' | 'Em progresso' | 'Atenção' | 'Estável';
+  score: number;
+  professionalId: string;
+}
+
+export interface ProfessionalPrescription {
+  id: string;
+  clientId: string;
+  professionalId: string;
+  title: string;
+  description: string;
+  items: string[];
+  createdAt: string;
+}
+
+export interface SeasonalRecommendation {
+  id: string;
+  product: string;
+  benefit: string;
+  season: string;
+  source: string;
+  tags: string[];
+}
+
+export interface ConsumerProduct {
+  id: string;
+  name: string;
+  price: string;
+  producer: string;
+  rating: number;
+  category: string;
+  isOrganic: boolean;
+}
+
 // Interfaces for System Presentation Data
 export interface PresentationPillar {
   id: string;
