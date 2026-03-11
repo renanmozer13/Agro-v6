@@ -15,9 +15,15 @@ import {
   ChevronRight,
   ChevronLeft,
   X,
-  Settings
+  Settings,
+  Store,
+  Truck,
+  ShoppingCart,
+  LineChart,
+  HeartPulse,
+  Users
 } from 'lucide-react';
-import { WeatherInfo, ViewMode } from '../types';
+import { WeatherInfo, ViewMode, UserRole } from '../types';
 
 interface SidebarProps {
   view: ViewMode;
@@ -28,6 +34,7 @@ interface SidebarProps {
   setIsSidebarCollapsed: (isCollapsed: boolean) => void;
   userLocation: { lat: number; lng: number } | null;
   weatherInfo: WeatherInfo | null;
+  userRole: UserRole;
 }
 
 // Helper for Premium Icons
@@ -41,6 +48,11 @@ const PremiumIcon = ({ icon: Icon, mode, isActive }: { icon: any, mode: ViewMode
       case 'automations': return 'from-amber-400 to-orange-600 shadow-orange-500/40';
       case 'emater': return 'from-sky-500 to-blue-700 shadow-blue-500/40';
       case 'presentation': return 'from-purple-500 to-pink-600 shadow-purple-500/40';
+      case 'market': return 'from-orange-400 to-red-600 shadow-orange-500/40';
+      case 'logistics': return 'from-blue-400 to-cyan-600 shadow-blue-500/40';
+      case 'pos': return 'from-emerald-500 to-teal-700 shadow-teal-500/40';
+      case 'retail_insights': return 'from-indigo-500 to-blue-700 shadow-indigo-500/40';
+      case 'consumer_hub': return 'from-rose-400 to-pink-600 shadow-rose-500/40';
       case 'settings': return 'from-stone-600 to-stone-900 shadow-stone-500/40';
       default: return 'from-gray-400 to-gray-600';
     }
@@ -94,7 +106,7 @@ const AgroBrasilLogo = ({ collapsed }: { collapsed?: boolean }) => (
 
 const Sidebar: React.FC<SidebarProps> = ({ 
   view, setView, isSidebarOpen, setIsSidebarOpen, 
-  isSidebarCollapsed, setIsSidebarCollapsed, userLocation, weatherInfo 
+  isSidebarCollapsed, setIsSidebarCollapsed, userLocation, weatherInfo, userRole
 }) => {
 
   const NavItem = ({ mode, icon: Icon, label }: { mode: ViewMode, icon: any, label: string }) => {
@@ -107,8 +119,8 @@ const Sidebar: React.FC<SidebarProps> = ({
         }}
         className={`w-full flex items-center gap-4 p-3 rounded-2xl transition-all font-medium group ${
           isActive
-          ? 'bg-white shadow-sm border border-stone-100' 
-          : 'hover:bg-white/50 border border-transparent hover:border-stone-100'
+          ? 'bg-white dark:bg-stone-800 shadow-sm border border-stone-100 dark:border-stone-700' 
+          : 'hover:bg-white/50 dark:hover:bg-stone-800/50 border border-transparent hover:border-stone-100 dark:hover:border-stone-700'
         } ${isSidebarCollapsed ? 'justify-center' : ''}`}
         title={isSidebarCollapsed ? label : undefined}
       >
@@ -129,13 +141,14 @@ const Sidebar: React.FC<SidebarProps> = ({
   return (
     <aside className={`
         fixed md:relative z-40 h-full bg-[#FDFBF7]/90 backdrop-blur-xl border-r border-white/50 flex flex-col transition-all duration-300 ease-in-out shadow-2xl shadow-stone-200/50
+        dark:bg-stone-900/90 dark:border-stone-800 dark:shadow-none
         ${isSidebarOpen ? 'translate-x-0 w-72' : '-translate-x-full md:translate-x-0'}
         ${isSidebarCollapsed ? 'md:w-24' : 'md:w-72'}
       `}>
         {/* Toggle Button (Desktop Only) */}
         <button 
           onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-          className="hidden md:flex absolute -right-3 top-10 w-6 h-6 bg-white border border-stone-200 rounded-full items-center justify-center text-stone-400 hover:text-farm-600 shadow-sm z-50 transition-colors"
+          className="hidden md:flex absolute -right-3 top-10 w-6 h-6 bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-full items-center justify-center text-stone-400 hover:text-farm-600 shadow-sm z-50 transition-colors"
         >
           {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
         </button>
@@ -154,10 +167,56 @@ const Sidebar: React.FC<SidebarProps> = ({
           {!isSidebarCollapsed && <div className="text-[10px] font-bold text-stone-400 uppercase tracking-widest px-4 mb-4 mt-2">Navegação</div>}
           
           <NavItem mode="chat" icon={Bot} label="Assistente do produtor" />
-          <NavItem mode="dashboard" icon={LayoutDashboard} label="Minha Fazenda" />
-          <NavItem mode="planner" icon={ClipboardList} label="Planejamento" />
-          <NavItem mode="cameras" icon={ShieldCheck} label="Segurança" />
-          <NavItem mode="automations" icon={Zap} label="Acionamentos" />
+          
+          {(userRole === UserRole.PRODUCER || userRole === UserRole.ADMIN) && (
+            <>
+              <NavItem mode="dashboard" icon={LayoutDashboard} label="Minha Fazenda" />
+              <NavItem mode="planner" icon={ClipboardList} label="Planejamento" />
+              <NavItem mode="cameras" icon={ShieldCheck} label="Segurança" />
+              <NavItem mode="automations" icon={Zap} label="Acionamentos" />
+            </>
+          )}
+
+          {(userRole === UserRole.PRODUCER || userRole === UserRole.RETAILER || userRole === UserRole.ADMIN) && (
+            <>
+              <NavItem mode="market" icon={Store} label="Mercado & Cotações" />
+              <NavItem mode="logistics" icon={Truck} label="Logística & Frete" />
+            </>
+          )}
+
+          {(userRole === UserRole.RETAILER || userRole === UserRole.ADMIN) && (
+            <>
+              <NavItem mode="pos" icon={ShoppingCart} label="PDV Varejo" />
+              {!isSidebarCollapsed ? (
+                 <div className="text-[10px] font-bold text-stone-400 uppercase tracking-widest px-4 mb-4 mt-8">Inteligência de Varejo</div>
+              ) : (
+                 <div className="my-4 border-t border-stone-200 mx-2"></div>
+              )}
+              <NavItem mode="retail_insights" icon={LineChart} label="Insights Varejo" />
+            </>
+          )}
+
+          {(userRole === UserRole.CONSUMER || userRole === UserRole.ADMIN) && (
+            <>
+              {!isSidebarCollapsed ? (
+                 <div className="text-[10px] font-bold text-stone-400 uppercase tracking-widest px-4 mb-4 mt-8">Consumidor Final</div>
+              ) : (
+                 <div className="my-4 border-t border-stone-200 mx-2"></div>
+              )}
+              <NavItem mode="consumer_hub" icon={HeartPulse} label="Saúde & Nutrição" />
+            </>
+          )}
+
+          {(userRole === UserRole.PROFESSIONAL || userRole === UserRole.ADMIN) && (
+            <>
+              {!isSidebarCollapsed ? (
+                 <div className="text-[10px] font-bold text-stone-400 uppercase tracking-widest px-4 mb-4 mt-8">Profissionais de Saúde</div>
+              ) : (
+                 <div className="my-4 border-t border-stone-200 mx-2"></div>
+              )}
+              <NavItem mode="professional_hub" icon={Users} label="Hub do Profissional" />
+            </>
+          )}
           
           {!isSidebarCollapsed ? (
              <div className="text-[10px] font-bold text-stone-400 uppercase tracking-widest px-4 mb-4 mt-8">Institucional</div>

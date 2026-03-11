@@ -187,6 +187,12 @@ const CropPlanner: React.FC<CropPlannerProps> = ({ userLocation }) => {
                 <Share2 size={18} className="text-farm-600" />
                 <span>Compartilhar</span>
               </button>
+              <button 
+                className="flex items-center gap-2 bg-orange-600 hover:bg-orange-700 text-white px-5 py-3 rounded-xl transition-colors group font-bold shadow-lg shadow-orange-200"
+              >
+                <BarChart3 size={18} />
+                <span>Ver Potencial de Mercado</span>
+              </button>
             </div>
           </div>
 

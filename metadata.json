@@ -1,6 +1,6 @@
 {
-  "name": "AGROBRASIL  6,0",
-  "description": "Assistente inteligente para agricultores com diagnóstico visual de plantas e controle de cultivo via IA.",
+  "name": "IAC Farm - Ecossistema Agro Autônomo",
+  "description": "Ecossistema agrícola completo e autônomo: conecta produtores orgânicos ao varejo, elimina atravessadores com logística inteligente, oferece PDV para hortifrutis e assistência por voz/IA.",
   "requestFramePermissions": [
     "camera",
     "microphone",

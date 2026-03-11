@@ -1,5 +1,5 @@
 import React from 'react';
-import ReactMarkdown from 'react-markdown';
+import Markdown from 'react-markdown';
 import { Message, MessageRole } from '../types';
 import { Bot, User, Sprout, Volume2, Square, Loader2 } from 'lucide-react';
 
@@ -63,7 +63,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, isPlaying, onToggleA
                  <span className="text-xs font-bold uppercase tracking-widest">Analisando Safra...</span>
                </div>
             ) : (
-              <ReactMarkdown>{message.content}</ReactMarkdown>
+              <Markdown>{message.content}</Markdown>
             )}
           </div>
           

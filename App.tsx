@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Message, MessageRole, Attachment, UserLocation, WeatherInfo, ViewMode } from './types';
+import { Message, MessageRole, Attachment, UserLocation, WeatherInfo, ViewMode, UserRole } from './types';
 import { sendMessageToGemini, generateSpeechFromText } from './services/geminiService';
 import { fetchLocalWeather } from './services/weatherService';
 import { playRawAudio } from './utils/audioUtils';
@@ -19,18 +19,41 @@ import EmaterChannel from './components/EmaterChannel';
 import SystemPresentation from './components/SystemPresentation';
 import Settings from './components/Settings';
 import PlantRegistry from './components/PlantRegistry';
+import MarketView from './components/MarketView';
+import LogisticsView from './components/LogisticsView';
+import RetailPOSView from './components/RetailPOSView';
+import RetailerInsights from './components/RetailerInsights';
+import ConsumerHub from './components/ConsumerHub';
+import ProfessionalHub from './components/ProfessionalHub';
 
-import { Menu, Square, Bot, Camera, Flower2 } from 'lucide-react';
+import { 
+  Menu, 
+  Square, 
+  Bot, 
+  Camera, 
+  Flower2, 
+  HeartPulse, 
+  Store
+} from 'lucide-react';
 
 const INITIAL_MESSAGE: Message = {
   id: 'init-1',
   role: MessageRole.ASSISTANT,
-  content: `Olá! Sou o IAC Farm, seu assistente agronômico. Posso ajudar com diagnósticos de pragas, planejamento de safra ou dúvidas técnicas. Envie uma foto ou faça uma pergunta!`,
+  content: `Olá! Sou o IAC Farm, seu Gestor Autônomo de Ecossistema. 
+
+Como posso te ajudar hoje?
+• Se você é **Produtor**: Posso planejar sua safra ou identificar pragas.
+• Se você é **Varejista**: Posso te dar insights de mercado e gerenciar seu PDV.
+• Se você é **Consumidor**: Posso criar um plano nutricional com o que tem de melhor no campo agora.
+
+Envie uma foto, um áudio ou escolha uma das opções abaixo!`,
   timestamp: new Date()
 };
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userRole, setUserRole] = useState<UserRole>(UserRole.CONSUMER);
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const [view, setView] = useState<ViewMode | 'registry'>('chat');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -124,6 +147,24 @@ const App: React.FC = () => {
     } finally { setIsLoading(false); }
   };
 
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDarkMode]);
+
+  const handleLogin = (role: UserRole) => {
+    setUserRole(role);
+    setIsAuthenticated(true);
+    // Set initial view based on role
+    if (role === UserRole.PRODUCER) setView('dashboard');
+    else if (role === UserRole.RETAILER) setView('market');
+    else if (role === UserRole.CONSUMER) setView('consumer_hub');
+    else if (role === UserRole.PROFESSIONAL) setView('professional_hub');
+  };
+
   const getHeaderTitle = () => {
     switch (view) {
       case 'chat': return 'IAC Farm - Assistente';
@@ -133,16 +174,22 @@ const App: React.FC = () => {
       case 'dashboard': return 'Minha Fazenda';
       case 'emater': return 'Canal EMATER';
       case 'presentation': return 'Relatório Executivo';
+      case 'market': return 'Mercado & Cotações';
+      case 'logistics': return 'Logística & Frete';
+      case 'pos': return 'PDV Varejo';
+      case 'retail_insights': return 'Insights Varejo';
+      case 'consumer_hub': return 'Saúde & Nutrição';
+      case 'professional_hub': return 'Hub do Profissional';
       case 'settings': return 'Configurações';
       case 'registry': return 'Minhas Plantas';
       default: return 'IAC Farm';
     }
   };
 
-  if (!isAuthenticated) return <LoginScreen onLogin={() => setIsAuthenticated(true)} />;
+  if (!isAuthenticated) return <LoginScreen onLogin={handleLogin} />;
 
   return (
-    <div className="flex h-screen w-full relative overflow-hidden bg-white font-sans text-stone-900 animate-fade-in">
+    <div className={`flex h-screen w-full relative overflow-hidden font-sans animate-fade-in ${isDarkMode ? 'bg-stone-950 text-stone-100' : 'bg-white text-stone-900'}`}>
       <Sidebar 
         view={view as ViewMode} 
         setView={(v) => setView(v as ViewMode | 'registry')} 
@@ -152,6 +199,7 @@ const App: React.FC = () => {
         setIsSidebarCollapsed={setIsSidebarCollapsed}
         userLocation={userLocation}
         weatherInfo={weatherInfo}
+        userRole={userRole}
       />
 
       {isSidebarOpen && <div className="fixed inset-0 bg-stone-900/50 backdrop-blur-sm z-30 md:hidden" onClick={() => setIsSidebarOpen(false)} />}
@@ -174,16 +222,21 @@ const App: React.FC = () => {
                    </div>
                    <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-sm"><Bot size={32} className="text-white" /></div>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-                   <button onClick={() => setView('registry')} className="bg-white border border-stone-100 shadow-sm rounded-2xl p-6 flex flex-col items-center text-center hover:shadow-md hover:border-farm-100 transition-all group cursor-pointer">
-                      <div className="w-14 h-14 bg-farm-50 text-farm-600 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform"><Flower2 size={26} /></div>
-                      <h3 className="font-bold text-stone-800 text-lg">Histórico de Plantas</h3>
-                      <p className="text-xs text-stone-500 font-medium">Ver diagnósticos arquivados</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                   <button onClick={() => setView('planner')} className="bg-white border border-stone-100 shadow-sm rounded-2xl p-6 flex flex-col items-center text-center hover:shadow-md hover:border-emerald-100 transition-all group cursor-pointer">
+                      <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform"><Flower2 size={26} /></div>
+                      <h3 className="font-bold text-stone-800 text-lg">Planejar Safra</h3>
+                      <p className="text-xs text-stone-500 font-medium">IA para produtores</p>
                    </button>
-                   <button className="bg-white border border-stone-100 shadow-sm rounded-2xl p-6 flex flex-col items-center text-center hover:shadow-md hover:border-blue-100 transition-all group cursor-pointer">
-                      <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform"><Bot size={26} /></div>
-                      <h3 className="font-bold text-stone-800 text-lg">Consultor Virtual</h3>
-                      <p className="text-xs text-stone-500 font-medium">Tire dúvidas de manejo</p>
+                   <button onClick={() => setView('market')} className="bg-white border border-stone-100 shadow-sm rounded-2xl p-6 flex flex-col items-center text-center hover:shadow-md hover:border-orange-100 transition-all group cursor-pointer">
+                      <div className="w-14 h-14 bg-orange-50 text-orange-600 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform"><Store size={26} /></div>
+                      <h3 className="font-bold text-stone-800 text-lg">Mercado CEASA</h3>
+                      <p className="text-xs text-stone-500 font-medium">Previsões para varejo</p>
+                   </button>
+                   <button onClick={() => setView('consumer_hub')} className="bg-white border border-stone-100 shadow-sm rounded-2xl p-6 flex flex-col items-center text-center hover:shadow-md hover:border-rose-100 transition-all group cursor-pointer">
+                      <div className="w-14 h-14 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform"><HeartPulse size={26} /></div>
+                      <h3 className="font-bold text-stone-800 text-lg">Saúde & Nutrição</h3>
+                      <p className="text-xs text-stone-500 font-medium">IA para o consumidor</p>
                    </button>
                 </div>
                 {messages.map((msg) => (
@@ -212,7 +265,13 @@ const App: React.FC = () => {
         {view === 'dashboard' && <FarmDashboard />}
         {view === 'emater' && <EmaterChannel />}
         {view === 'presentation' && <SystemPresentation />}
-        {view === 'settings' && <Settings />}
+        {view === 'market' && <MarketView />}
+        {view === 'logistics' && <LogisticsView />}
+        {view === 'pos' && <RetailPOSView />}
+        {view === 'retail_insights' && <RetailerInsights />}
+        {view === 'consumer_hub' && <ConsumerHub />}
+        {view === 'professional_hub' && <ProfessionalHub />}
+        {view === 'settings' && <Settings isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />}
         {view === 'registry' && <PlantRegistry />}
 
       </main>

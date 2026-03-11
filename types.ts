@@ -1,4 +1,12 @@
 
+export enum UserRole {
+  PRODUCER = 'PRODUCER',
+  RETAILER = 'RETAILER',
+  CONSUMER = 'CONSUMER',
+  PROFESSIONAL = 'PROFESSIONAL',
+  ADMIN = 'ADMIN'
+}
+
 export enum MessageRole {
   USER = 'user',
   ASSISTANT = 'assistant',
@@ -93,7 +101,60 @@ export interface IdentifiedPlant {
   location?: string; // e.g., "Talhão 03"
 }
 
-export type ViewMode = 'chat' | 'planner' | 'cameras' | 'automations' | 'dashboard' | 'emater' | 'presentation' | 'settings';
+export type ViewMode = 'chat' | 'planner' | 'cameras' | 'automations' | 'dashboard' | 'emater' | 'presentation' | 'settings' | 'market' | 'logistics' | 'pos' | 'retail_insights' | 'consumer_hub' | 'professional_hub';
+
+export interface MarketQuote {
+  product: string;
+  price: number;
+  unit: string;
+  trend: 'up' | 'down' | 'stable';
+  lastUpdate: string;
+  source: string;
+}
+
+export interface MarketOffer {
+  id: string;
+  producerId: string;
+  product: string;
+  quantity: number;
+  unit: string;
+  price: number;
+  location: string;
+  isOrganic: boolean;
+  status: 'available' | 'sold' | 'reserved';
+  createdAt: string;
+}
+
+export interface FreightRoute {
+  id: string;
+  driverName: string;
+  capacity: number;
+  currentLoad: number;
+  route: string[]; // List of locations
+  pricePerKm: number;
+  status: 'idle' | 'en_route' | 'completed';
+}
+
+export interface SaleRecord {
+  id: string;
+  productId: string;
+  quantity: number;
+  totalPrice: number;
+  customerType: 'final_consumer' | 'retailer';
+  timestamp: string;
+}
+
+export interface NutritionPlan {
+  id: string;
+  title: string;
+  goal: string;
+  dailyMeals: {
+    time: string;
+    suggestion: string;
+    ingredients: string[];
+  }[];
+  seasonalFocus: string[];
+}
 
 // Interfaces for System Presentation Data
 export interface PresentationPillar {

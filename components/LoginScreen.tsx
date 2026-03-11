@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { User, Lock, ArrowRight, Loader2, CheckCircle2 } from 'lucide-react';
+import { User, Lock, ArrowRight, Loader2, CheckCircle2, Tractor, ShoppingCart, HeartPulse } from 'lucide-react';
+import { UserRole } from '../types';
 
 interface LoginScreenProps {
-  onLogin: () => void;
+  onLogin: (role: UserRole) => void;
 }
 
 // Vector Logo Component for AgroBrasil (Large)
@@ -55,6 +56,7 @@ const AgroBrasilLogoForm = () => (
 const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [role, setRole] = useState<UserRole>(UserRole.PRODUCER);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -73,7 +75,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
       if (isLegacyUser || isMasterUser) {
         setIsSuccess(true);
         setTimeout(() => {
-            onLogin();
+            onLogin(role);
         }, 800);
       } else {
         setError('Usuário ou senha incorretos.');
@@ -83,7 +85,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen w-full flex bg-stone-50 font-sans">
+    <div className="min-h-screen w-full flex bg-stone-50 dark:bg-stone-950 font-sans transition-colors duration-300">
       
       {/* Left Side - Image & Branding */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-farm-900">
@@ -111,20 +113,56 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
       </div>
 
       {/* Right Side - Login Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-white relative">
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-white dark:bg-stone-900 relative">
         <div className="w-full max-w-md space-y-8 animate-slide-up">
           
           <div className="text-center lg:text-left">
             <div className="lg:hidden mb-8">
                <AgroBrasilLogoForm />
             </div>
-            <h2 className="text-3xl font-bold text-stone-900 tracking-tight">Bem-vindo de volta!</h2>
-            <p className="mt-2 text-stone-500">Acesse o sistema AgroBrasil com suas credenciais.</p>
+            <h2 className="text-3xl font-bold text-stone-900 dark:text-stone-100 tracking-tight">Bem-vindo de volta!</h2>
+            <p className="mt-2 text-stone-500 dark:text-stone-400">Acesse o sistema AgroBrasil com suas credenciais.</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             
             <div className="space-y-4">
+              {/* Role Selection */}
+              <div className="grid grid-cols-2 gap-3 mb-6">
+                <button
+                  type="button"
+                  onClick={() => setRole(UserRole.PRODUCER)}
+                  className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${role === UserRole.PRODUCER ? 'border-farm-500 bg-farm-50 dark:bg-farm-900/20 text-farm-700 dark:text-farm-300' : 'border-stone-100 dark:border-stone-800 bg-stone-50 dark:bg-stone-800 text-stone-400 hover:border-stone-200 dark:hover:border-stone-700'}`}
+                >
+                  <Tractor size={20} className="mb-1" />
+                  <span className="text-[10px] font-bold uppercase">Produtor</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRole(UserRole.RETAILER)}
+                  className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${role === UserRole.RETAILER ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300' : 'border-stone-100 dark:border-stone-800 bg-stone-50 dark:bg-stone-800 text-stone-400 hover:border-stone-200 dark:hover:border-stone-700'}`}
+                >
+                  <ShoppingCart size={20} className="mb-1" />
+                  <span className="text-[10px] font-bold uppercase">Varejo</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRole(UserRole.CONSUMER)}
+                  className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${role === UserRole.CONSUMER ? 'border-rose-500 bg-rose-50 dark:bg-rose-900/20 text-rose-700 dark:text-rose-300' : 'border-stone-100 dark:border-stone-800 bg-stone-50 dark:bg-stone-800 text-stone-400 hover:border-stone-200 dark:hover:border-stone-700'}`}
+                >
+                  <HeartPulse size={20} className="mb-1" />
+                  <span className="text-[10px] font-bold uppercase">Consumidor</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRole(UserRole.PROFESSIONAL)}
+                  className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${role === UserRole.PROFESSIONAL ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300' : 'border-stone-100 dark:border-stone-800 bg-stone-50 dark:bg-stone-800 text-stone-400 hover:border-stone-200 dark:hover:border-stone-700'}`}
+                >
+                  <User size={20} className="mb-1" />
+                  <span className="text-[10px] font-bold uppercase">Profissional</span>
+                </button>
+              </div>
+
               {/* Username Input */}
               <div className="relative group">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -134,7 +172,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="block w-full pl-12 pr-4 py-4 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-farm-500/20 focus:border-farm-500 transition-all font-medium"
+                  className="block w-full pl-12 pr-4 py-4 bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-xl text-stone-900 dark:text-stone-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-farm-500/20 focus:border-farm-500 transition-all font-medium"
                   placeholder="Usuário (iac)"
                 />
               </div>
@@ -148,7 +186,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full pl-12 pr-4 py-4 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-farm-500/20 focus:border-farm-500 transition-all font-medium"
+                  className="block w-full pl-12 pr-4 py-4 bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-xl text-stone-900 dark:text-stone-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-farm-500/20 focus:border-farm-500 transition-all font-medium"
                   placeholder="Senha"
                 />
               </div>

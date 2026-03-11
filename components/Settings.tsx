@@ -22,7 +22,12 @@ import {
 
 type SettingsTab = 'general' | 'farm' | 'security' | 'integrations' | 'data';
 
-const Settings: React.FC = () => {
+interface SettingsProps {
+  isDarkMode: boolean;
+  setIsDarkMode: (isDark: boolean) => void;
+}
+
+const Settings: React.FC<SettingsProps> = ({ isDarkMode, setIsDarkMode }) => {
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
   const [isSaving, setIsSaving] = useState(false);
 
@@ -176,10 +181,15 @@ const Settings: React.FC = () => {
                          <div className="font-bold text-stone-700">Modo Escuro</div>
                          <div className="text-xs text-stone-500">Ajustar interface para ambientes noturnos.</div>
                       </div>
-                      <div className="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
-                          <input type="checkbox" name="toggle" id="toggle-dark" className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-stone-300"/>
-                          <label htmlFor="toggle-dark" className="toggle-label block overflow-hidden h-6 rounded-full bg-stone-300 cursor-pointer"></label>
-                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          className="sr-only peer" 
+                          checked={isDarkMode}
+                          onChange={(e) => setIsDarkMode(e.target.checked)}
+                        />
+                        <div className="w-11 h-6 bg-stone-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-farm-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-farm-600"></div>
+                      </label>
                    </div>
                    <div className="flex items-center justify-between py-3">
                       <div>
