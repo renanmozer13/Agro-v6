@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Modality, Type } from "@google/genai";
-import { Message, MessageRole, CropPlan, UserLocation } from '../types';
+import { Message, MessageRole, CropPlan, UserLocation, MarketQuote } from '../types';
 
 // Initialize the client
 // API Key is injected by the environment.
@@ -13,22 +13,34 @@ const TTS_MODEL_NAME = 'gemini-2.5-flash-preview-tts';
 /**
  * Helper function to implement exponential backoff retry logic for API calls.
  */
-async function withRetry<T>(fn: () => Promise<T>, retries = 3, delay = 2000): Promise<T> {
+async function withRetry<T>(fn: () => Promise<T>, retries = 5, delay = 1000): Promise<T> {
   try {
     return await fn();
   } catch (error: any) {
     const errorMessage = error?.message?.toLowerCase() || '';
-    const isTransient = errorMessage.includes('503') || 
+    const statusCode = error?.status || error?.code || 0;
+    
+    const isTransient = statusCode === 503 || 
+                        statusCode === 429 ||
+                        errorMessage.includes('503') || 
                         errorMessage.includes('429') || 
                         errorMessage.includes('high demand') ||
                         errorMessage.includes('overloaded') ||
-                        errorMessage.includes('deadline exceeded');
+                        errorMessage.includes('deadline exceeded') ||
+                        errorMessage.includes('service unavailable');
     
     if (isTransient && retries > 0) {
-      console.warn(`Gemini API busy (503/429). Retrying in ${delay}ms... (${retries} attempts left)`);
-      await new Promise(resolve => setTimeout(resolve, delay));
+      // Add jitter to avoid thundering herd
+      const jitter = Math.random() * 1000;
+      const totalDelay = delay + jitter;
+      
+      console.warn(`Gemini API transient error (${statusCode || 'unknown'}). Retrying in ${Math.round(totalDelay)}ms... (${retries} attempts left)`);
+      
+      await new Promise(resolve => setTimeout(resolve, totalDelay));
       return withRetry(fn, retries - 1, delay * 2);
     }
+    
+    console.error("Gemini API Non-transient error:", error);
     throw error;
   }
 }
@@ -238,6 +250,22 @@ const cropPlanSchema = {
   required: ["cropName", "bestSeason", "cycleDuration", "cycleDaysMin", "cycleDaysMax", "plantingSteps", "irrigation", "soilRequirements", "soilData", "seasonalRisks"]
 };
 
+const marketQuotesSchema = {
+  type: Type.ARRAY,
+  items: {
+    type: Type.OBJECT,
+    properties: {
+      product: { type: Type.STRING },
+      price: { type: Type.NUMBER },
+      unit: { type: Type.STRING },
+      trend: { type: Type.STRING, enum: ['up', 'down', 'stable'] },
+      lastUpdate: { type: Type.STRING },
+      source: { type: Type.STRING }
+    },
+    required: ["product", "price", "unit", "trend", "lastUpdate", "source"]
+  }
+};
+
 export const generateCropPlan = async (cropInput: string, location?: UserLocation | null): Promise<CropPlan | null> => {
   try {
     const apiKey = getApiKey();
@@ -276,5 +304,36 @@ export const generateCropPlan = async (cropInput: string, location?: UserLocatio
   } catch (error) {
     console.error("Erro ao gerar plano de safra:", error);
     return null;
+  }
+}
+
+export const getCEASAQuotes = async (location?: string): Promise<MarketQuote[]> => {
+  try {
+    const apiKey = getApiKey();
+    if (!apiKey) return [];
+    const ai = new GoogleGenAI({ apiKey });
+
+    const prompt = `Busque os preços reais e atualizados de hoje no CEASA ${location || 'do Rio de Janeiro (CEASA-RJ)'} para os principais produtos de hortifruti (Tomate, Batata, Cebola, Cenoura, Pimentão, Alface). 
+    Retorne os dados em formato JSON seguindo o esquema fornecido. 
+    A fonte deve ser o CEASA oficial. A data deve ser a de hoje.`;
+
+    const response = await withRetry(() => ai.models.generateContent({
+      model: MODEL_NAME,
+      contents: { parts: [{ text: prompt }] },
+      config: {
+        tools: [{ googleSearch: {} }],
+        responseMimeType: "application/json",
+        responseSchema: marketQuotesSchema,
+      }
+    }));
+
+    const jsonText = response.text;
+    if (!jsonText) return [];
+    
+    return JSON.parse(jsonText) as MarketQuote[];
+
+  } catch (error) {
+    console.error("Erro ao buscar cotações CEASA:", error);
+    return [];
   }
 }

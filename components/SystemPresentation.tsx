@@ -203,12 +203,36 @@ const SystemPresentation: React.FC = () => {
 
         <div className="mb-12 print:mb-10">
           <h2 className="text-4xl font-bold mb-6 text-stone-900">Visão Geral</h2>
-          <p className="text-lg text-stone-600 leading-relaxed text-justify">
+          <p className="text-lg text-stone-600 leading-relaxed text-justify mb-8">
             O <strong>IAC Farm</strong> é uma plataforma centralizada projetada para o produtor rural moderno. 
             Diferente de sistemas fragmentados, nossa solução integra diagnóstico fitossanitário via IA Generativa, 
             controle de automação (IoT) e segurança patrimonial em uma única interface intuitiva. 
             O objetivo é reduzir custos operacionais, mitigar riscos climáticos e aumentar a produtividade através de dados.
           </p>
+
+          {/* Video Presentation Section */}
+          <div className="bg-stone-100 rounded-3xl overflow-hidden shadow-xl border border-stone-200 print:hidden mb-12">
+            <div className="p-4 bg-stone-900 flex items-center justify-between">
+              <span className="text-white text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+                <BrainCircuit size={16} className="text-farm-400" /> Apresentação do Ecossistema
+              </span>
+              <div className="flex gap-1">
+                <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                <div className="w-2 h-2 rounded-full bg-amber-500"></div>
+                <div className="w-2 h-2 rounded-full bg-green-500"></div>
+              </div>
+            </div>
+            <div className="aspect-video w-full bg-black flex items-center justify-center">
+              <video 
+                controls 
+                className="w-full h-full"
+                poster="https://picsum.photos/seed/farm-video/1280/720"
+              >
+                <source src="https://hoepznsyzdlrzzlrlurp.supabase.co/storage/v1/object/public/videos/apresentacao_clickparts.mp4.mp4" type="video/mp4" />
+                Seu navegador não suporta vídeos.
+              </video>
+            </div>
+          </div>
         </div>
 
         {/* Core Pillars Grid */}

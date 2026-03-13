@@ -34,46 +34,85 @@ import {
 import { dbService } from '../services/dbService';
 import { ProfessionalClient, SeasonalRecommendation } from '../types';
 
-const ProfessionalHub: React.FC = () => {
+interface ProfessionalHubProps {
+  setView?: (view: any) => void;
+}
+
+const ProfessionalHub: React.FC<ProfessionalHubProps> = ({ setView }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'clients' | 'recommendations' | 'analytics'>('clients');
   const [clients, setClients] = useState<ProfessionalClient[]>([]);
   const [recommendations, setRecommendations] = useState<SeasonalRecommendation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAddingClient, setIsAddingClient] = useState(false);
+  const [newClient, setNewClient] = useState({ name: '', goal: '' });
+  const [feedback, setFeedback] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
+
+  const fetchData = async () => {
+    setIsLoading(true);
+    const professionalId = 'demo-prof-123';
+    const [clientsData, recsData] = await Promise.all([
+      dbService.getProfessionalClients(professionalId),
+      dbService.getSeasonalRecommendations()
+    ]);
+    
+    if (clientsData.length === 0) {
+      setClients([
+        { id: '1', name: 'João Silva', goal: 'Hipertrofia', lastUpdate: '2 dias atrás', status: 'Em progresso', score: 85, professionalId },
+        { id: '2', name: 'Maria Oliveira', goal: 'Emagrecimento', lastUpdate: 'Hoje', status: 'Excelente', score: 92, professionalId },
+        { id: '3', name: 'Carlos Santos', goal: 'Performance (Maratona)', lastUpdate: '1 semana atrás', status: 'Atenção', score: 68, professionalId },
+        { id: '4', name: 'Ana Costa', goal: 'Saúde Geral', lastUpdate: '3 dias atrás', status: 'Estável', score: 75, professionalId },
+      ]);
+    } else {
+      setClients(clientsData);
+    }
+
+    if (recsData.length === 0) {
+      setRecommendations([
+        { id: 's1', product: 'Batata Doce Roxa', benefit: 'Baixo índice glicêmico, ideal para pré-treino de longa duração.', season: 'Alta Safra (Março)', source: 'Fazenda Santa Maria', tags: ['Energia', 'Resistência'] },
+        { id: 's2', product: 'Espinafre Orgânico', benefit: 'Rico em nitratos, melhora a eficiência mitocondrial e oxigenação.', season: 'Safra Local', source: 'Horta Comunitária IAC', tags: ['Performance', 'Recuperação'] },
+        { id: 's3', product: 'Abacate Hass', benefit: 'Gorduras boas para suporte hormonal e saciedade prolongada.', season: 'Início de Safra', source: 'Pomar Vale Verde', tags: ['Hormonal', 'Saciedade'] },
+      ]);
+    } else {
+      setRecommendations(recsData);
+    }
+    setIsLoading(false);
+  };
 
   useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
-      const professionalId = 'demo-prof-123';
-      const [clientsData, recsData] = await Promise.all([
-        dbService.getProfessionalClients(professionalId),
-        dbService.getSeasonalRecommendations()
-      ]);
-      
-      if (clientsData.length === 0) {
-        setClients([
-          { id: '1', name: 'João Silva', goal: 'Hipertrofia', lastUpdate: '2 dias atrás', status: 'Em progresso', score: 85, professionalId },
-          { id: '2', name: 'Maria Oliveira', goal: 'Emagrecimento', lastUpdate: 'Hoje', status: 'Excelente', score: 92, professionalId },
-          { id: '3', name: 'Carlos Santos', goal: 'Performance (Maratona)', lastUpdate: '1 semana atrás', status: 'Atenção', score: 68, professionalId },
-          { id: '4', name: 'Ana Costa', goal: 'Saúde Geral', lastUpdate: '3 dias atrás', status: 'Estável', score: 75, professionalId },
-        ]);
-      } else {
-        setClients(clientsData);
-      }
-
-      if (recsData.length === 0) {
-        setRecommendations([
-          { id: 's1', product: 'Batata Doce Roxa', benefit: 'Baixo índice glicêmico, ideal para pré-treino de longa duração.', season: 'Alta Safra (Março)', source: 'Fazenda Santa Maria', tags: ['Energia', 'Resistência'] },
-          { id: 's2', product: 'Espinafre Orgânico', benefit: 'Rico em nitratos, melhora a eficiência mitocondrial e oxigenação.', season: 'Safra Local', source: 'Horta Comunitária IAC', tags: ['Performance', 'Recuperação'] },
-          { id: 's3', product: 'Abacate Hass', benefit: 'Gorduras boas para suporte hormonal e saciedade prolongada.', season: 'Início de Safra', source: 'Pomar Vale Verde', tags: ['Hormonal', 'Saciedade'] },
-        ]);
-      } else {
-        setRecommendations(recsData);
-      }
-      setIsLoading(false);
-    };
     fetchData();
   }, []);
+
+  const handleAddClient = async () => {
+    if (!newClient.name) return;
+    setIsLoading(true);
+    const client: ProfessionalClient = {
+      id: Date.now().toString(),
+      name: newClient.name,
+      goal: newClient.goal || 'Objetivo não definido',
+      lastUpdate: 'Agora',
+      status: 'Estável',
+      score: 0,
+      professionalId: 'demo-prof-123'
+    };
+    
+    const success = await dbService.saveProfessionalClient(client);
+    if (success) {
+      setClients(prev => [client, ...prev]);
+      setIsAddingClient(false);
+      setNewClient({ name: '', goal: '' });
+      setFeedback({ message: 'Cliente adicionado com sucesso!', type: 'success' });
+    } else {
+      setFeedback({ message: 'Erro ao salvar cliente no banco de dados.', type: 'error' });
+    }
+    setIsLoading(false);
+    setTimeout(() => setFeedback(null), 3000);
+  };
+
+  const handlePrescribe = (product: string) => {
+    setFeedback({ message: `Recomendação de ${product} adicionada ao rascunho.`, type: 'success' });
+    setTimeout(() => setFeedback(null), 3000);
+  };
 
   const PERFORMANCE_DATA = [
     { month: 'Jan', performance: 65, compliance: 70 },
@@ -86,6 +125,14 @@ const ProfessionalHub: React.FC = () => {
     <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-stone-50 dark:bg-stone-950 animate-fade-in">
       <div className="max-w-6xl mx-auto space-y-8">
         
+        {/* Feedback Toast */}
+        {feedback && (
+          <div className={`fixed top-6 right-6 z-50 p-4 rounded-2xl shadow-xl flex items-center gap-3 animate-slide-in ${feedback.type === 'success' ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}>
+            {feedback.type === 'success' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
+            <p className="font-bold text-sm">{feedback.message}</p>
+          </div>
+        )}
+
         {/* Header Section */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -93,6 +140,12 @@ const ProfessionalHub: React.FC = () => {
             <p className="text-stone-500 dark:text-stone-400 font-medium">Gestão de performance baseada na inteligência do campo</p>
           </div>
           <div className="flex items-center gap-3">
+            <button 
+              onClick={() => setIsAddingClient(true)}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-2xl font-bold text-sm flex items-center gap-2 shadow-lg shadow-indigo-600/20 transition-all"
+            >
+              <Plus size={18} /> Novo Cliente
+            </button>
             <div className="bg-white dark:bg-stone-900 p-3 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800 flex items-center gap-3">
               <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-full flex items-center justify-center">
                 <Users size={20} />
@@ -245,7 +298,12 @@ const ProfessionalHub: React.FC = () => {
                         </div>
                         <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">{rec.source}</span>
                       </div>
-                      <button className="text-indigo-600 dark:text-indigo-400 font-bold text-xs hover:underline">Prescrever</button>
+                      <button 
+                        onClick={() => handlePrescribe(rec.product)}
+                        className="text-indigo-600 dark:text-indigo-400 font-bold text-xs hover:underline"
+                      >
+                        Prescrever
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -343,6 +401,51 @@ const ProfessionalHub: React.FC = () => {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Add Client Modal */}
+        {isAddingClient && (
+          <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-stone-900 w-full max-w-md rounded-3xl p-8 shadow-2xl animate-scale-in">
+              <h3 className="text-2xl font-black text-stone-900 dark:text-white mb-6">Novo Cliente</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-stone-400 uppercase tracking-wider mb-2">Nome Completo</label>
+                  <input 
+                    type="text" 
+                    className="w-full bg-stone-50 dark:bg-stone-800 border border-stone-100 dark:border-stone-700 rounded-2xl p-4 outline-none focus:ring-2 focus:ring-indigo-500/20"
+                    placeholder="Ex: João da Silva"
+                    value={newClient.name}
+                    onChange={(e) => setNewClient({...newClient, name: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-stone-400 uppercase tracking-wider mb-2">Objetivo Principal</label>
+                  <input 
+                    type="text" 
+                    className="w-full bg-stone-50 dark:bg-stone-800 border border-stone-100 dark:border-stone-700 rounded-2xl p-4 outline-none focus:ring-2 focus:ring-indigo-500/20"
+                    placeholder="Ex: Emagrecimento, Hipertrofia..."
+                    value={newClient.goal}
+                    onChange={(e) => setNewClient({...newClient, goal: e.target.value})}
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3 mt-8">
+                <button 
+                  onClick={() => setIsAddingClient(false)}
+                  className="flex-1 py-4 bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400 rounded-2xl font-bold"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={handleAddClient}
+                  className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg shadow-indigo-600/20"
+                >
+                  Salvar
+                </button>
+              </div>
             </div>
           </div>
         )}

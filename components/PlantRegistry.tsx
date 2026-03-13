@@ -1,10 +1,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, Calendar, MapPin, AlertTriangle, CheckCircle2, ChevronRight, Flower2, Sprout, Bug, Activity, X, Loader2 } from 'lucide-react';
-import { IdentifiedPlant } from '../types';
+import { IdentifiedPlant, UserProfile } from '../types';
 import { dbService } from '../services/dbService';
 
-const PlantRegistry: React.FC = () => {
+interface PlantRegistryProps {
+  currentUser?: UserProfile | null;
+}
+
+const PlantRegistry: React.FC<PlantRegistryProps> = ({ currentUser }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'healthy' | 'attention'>('all');
   const [selectedPlant, setSelectedPlant] = useState<IdentifiedPlant | null>(null);
@@ -12,12 +16,15 @@ const PlantRegistry: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadPlants();
-  }, []);
+    if (currentUser) {
+      loadPlants();
+    }
+  }, [currentUser]);
 
   const loadPlants = async () => {
+    if (!currentUser) return;
     setLoading(true);
-    const data = await dbService.getPlantHistory();
+    const data = await dbService.getPlantHistory(currentUser.id);
     setPlants(data);
     setLoading(false);
   };

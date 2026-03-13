@@ -29,10 +29,15 @@ const MOCK_NUTRITION_PLAN = {
   seasonalFocus: ["Couve", "Abóbora", "Banana", "Tomate"]
 };
 
-const ConsumerHub: React.FC = () => {
+interface ConsumerHubProps {
+  setView?: (view: any) => void;
+}
+
+const ConsumerHub: React.FC<ConsumerHubProps> = ({ setView }) => {
   const [activeTab, setActiveTab] = useState<'find' | 'nutrition'>('find');
   const [products, setProducts] = useState<ConsumerProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [feedback, setFeedback] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -53,8 +58,38 @@ const ConsumerHub: React.FC = () => {
     fetchProducts();
   }, []);
 
+  const handleSavePlan = async () => {
+    setIsLoading(true);
+    const success = await dbService.saveNutritionPlan(MOCK_NUTRITION_PLAN, 'demo-user-123');
+    setIsLoading(false);
+    if (success) {
+      setFeedback({ message: 'Plano nutricional salvo com sucesso no seu perfil!', type: 'success' });
+    } else {
+      setFeedback({ message: 'Opa, não conseguimos salvar o plano agora. Tente novamente mais tarde.', type: 'error' });
+    }
+    setTimeout(() => setFeedback(null), 3000);
+  };
+
+  const handleTalkToAI = () => {
+    if (setView) {
+      setView('chat');
+      // Note: In a real app we might pass a pre-filled message state
+    } else {
+      setFeedback({ message: 'Iniciando chat com Nutricionista IA...', type: 'success' });
+      setTimeout(() => setFeedback(null), 3000);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full bg-[#FDFBF7] overflow-hidden">
+      {/* Feedback Toast */}
+      {feedback && (
+        <div className={`fixed top-6 right-6 z-50 p-4 rounded-2xl shadow-xl flex items-center gap-3 animate-slide-in ${feedback.type === 'success' ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}>
+          {feedback.type === 'success' ? <Star size={20} /> : <Info size={20} />}
+          <p className="font-bold text-sm">{feedback.message}</p>
+        </div>
+      )}
+
       <header className="p-6 border-b border-stone-200 bg-white/50 backdrop-blur-md flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-black text-stone-900 tracking-tight flex items-center gap-2">
@@ -196,10 +231,17 @@ const ConsumerHub: React.FC = () => {
                   ))}
                 </div>
 
-                <button className="w-full py-4 bg-rose-600 text-white rounded-2xl font-black uppercase tracking-widest text-sm hover:bg-rose-700 transition-all shadow-lg shadow-rose-200 mt-4">
-                  GERAR NOVO PLANO PERSONALIZADO
+                <button 
+                  onClick={handleSavePlan}
+                  disabled={isLoading}
+                  className="w-full py-4 bg-rose-600 text-white rounded-2xl font-black uppercase tracking-widest text-sm hover:bg-rose-700 transition-all shadow-lg shadow-rose-200 mt-4 disabled:opacity-50"
+                >
+                  {isLoading ? 'SALVANDO...' : 'SALVAR PLANO NO PERFIL'}
                 </button>
-                <button className="w-full py-4 mt-3 bg-white border-2 border-rose-500 text-rose-600 rounded-2xl font-black uppercase tracking-widest text-sm hover:bg-rose-50 transition-all">
+                <button 
+                  onClick={handleTalkToAI}
+                  className="w-full py-4 mt-3 bg-white border-2 border-rose-500 text-rose-600 rounded-2xl font-black uppercase tracking-widest text-sm hover:bg-rose-50 transition-all"
+                >
                   FALAR COM NUTRICIONISTA IA
                 </button>
               </div>

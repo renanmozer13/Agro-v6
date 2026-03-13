@@ -7,7 +7,9 @@ import {
   ProfessionalPrescription, 
   SeasonalRecommendation, 
   ConsumerProduct,
-  NutritionPlan
+  NutritionPlan,
+  UserProfile,
+  MarketOffer
 } from '../types';
 
 export const dbService = {
@@ -47,12 +49,13 @@ export const dbService = {
   /**
    * Salva o diagnóstico de uma planta.
    */
-  async savePlantDiagnosis(plant: Omit<IdentifiedPlant, 'id'>): Promise<IdentifiedPlant | null> {
+  async savePlantDiagnosis(plant: Omit<IdentifiedPlant, 'id'>, userId: string): Promise<IdentifiedPlant | null> {
     try {
       const { data, error } = await supabase
         .from('plants')
         .insert([
           {
+            user_id: userId,
             common_name: plant.commonName,
             scientific_name: plant.scientificName,
             date: plant.date,
@@ -76,13 +79,14 @@ export const dbService = {
   },
 
   /**
-   * Busca o histórico de plantas identificadas.
+   * Busca o histórico de plantas identificadas de um usuário específico.
    */
-  async getPlantHistory(): Promise<IdentifiedPlant[]> {
+  async getPlantHistory(userId: string): Promise<IdentifiedPlant[]> {
     try {
       const { data, error } = await supabase
         .from('plants')
         .select('*')
+        .eq('user_id', userId)
         .order('date', { ascending: false });
 
       if (error) throw error;
@@ -146,6 +150,26 @@ export const dbService = {
     } catch (error) {
       console.error("Error fetching professional clients:", error);
       return [];
+    }
+  },
+
+  async saveProfessionalClient(client: ProfessionalClient): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from('professional_clients')
+        .insert([{
+          id: client.id,
+          name: client.name,
+          goal: client.goal,
+          last_update: client.lastUpdate,
+          status: client.status,
+          score: client.score,
+          professional_id: client.professionalId
+        }]);
+      return !error;
+    } catch (error) {
+      console.error("Error saving professional client:", error);
+      return false;
     }
   },
 
@@ -217,6 +241,79 @@ export const dbService = {
       return !error;
     } catch (error) {
       console.error("Error saving nutrition plan:", error);
+      return false;
+    }
+  },
+
+  async saveUserProfile(profile: Omit<UserProfile, 'createdAt'>): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from('user_profiles')
+        .upsert([{
+          id: profile.id,
+          email: profile.email,
+          role: profile.role,
+          full_name: profile.fullName,
+          document: profile.document,
+          phone: profile.phone,
+          producer_data: profile.producerData,
+          retailer_data: profile.retailerData,
+          professional_data: profile.professionalData,
+          consumer_data: profile.consumerData
+        }]);
+      return !error;
+    } catch (error) {
+      console.error("Error saving user profile:", error);
+      return false;
+    }
+  },
+
+  // --- MARKETPLACE METHODS ---
+
+  async getMarketOffers(): Promise<MarketOffer[]> {
+    try {
+      const { data, error } = await supabase
+        .from('market_offers')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      return data.map(r => ({
+        id: r.id,
+        producerId: r.producer_id,
+        product: r.product,
+        quantity: r.quantity,
+        unit: r.unit,
+        price: r.price,
+        location: r.location,
+        isOrganic: r.is_organic,
+        status: r.status,
+        createdAt: r.created_at
+      }));
+    } catch (error) {
+      console.error("Error fetching market offers:", error);
+      return [];
+    }
+  },
+
+  async saveMarketOffer(offer: Omit<MarketOffer, 'id' | 'createdAt'>): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from('market_offers')
+        .insert([{
+          producer_id: offer.producerId,
+          product: offer.product,
+          quantity: offer.quantity,
+          unit: offer.unit,
+          price: offer.price,
+          location: offer.location,
+          is_organic: offer.isOrganic,
+          status: offer.status
+        }]);
+      return !error;
+    } catch (error) {
+      console.error("Error saving market offer:", error);
       return false;
     }
   }

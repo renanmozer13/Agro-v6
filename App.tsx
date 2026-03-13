@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Message, MessageRole, Attachment, UserLocation, WeatherInfo, ViewMode, UserRole } from './types';
+import { Message, MessageRole, Attachment, UserLocation, WeatherInfo, ViewMode, UserRole, UserProfile } from './types';
 import { sendMessageToGemini, generateSpeechFromText } from './services/geminiService';
 import { fetchLocalWeather } from './services/weatherService';
 import { playRawAudio } from './utils/audioUtils';
@@ -16,6 +16,7 @@ import CameraGrid from './components/CameraGrid';
 import AutomationControl from './components/AutomationControl';
 import FarmDashboard from './components/FarmDashboard';
 import LoginScreen from './components/LoginScreen';
+import RegistrationScreen from './components/RegistrationScreen';
 import EmaterChannel from './components/EmaterChannel';
 import SystemPresentation from './components/SystemPresentation';
 import Settings from './components/Settings';
@@ -53,6 +54,8 @@ Envie uma foto, um áudio ou escolha uma das opções abaixo!`,
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [userRole, setUserRole] = useState<UserRole>(UserRole.CONSUMER);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [view, setView] = useState<ViewMode | 'registry'>('chat');
@@ -109,6 +112,11 @@ const App: React.FC = () => {
 
   const handleToggleAudio = async (messageId: string) => {
     if (playingMessageId === messageId) { stopAudio(); return; }
+    
+    // Check if any message is currently loading audio to prevent concurrent requests
+    const isAnyAudioLoading = messages.some(m => m.isAudioLoading);
+    if (isAnyAudioLoading) return;
+
     stopAudio();
     const msg = messages.find(m => m.id === messageId);
     if (!msg) return;
@@ -162,7 +170,7 @@ const App: React.FC = () => {
             fullDiagnosis: responseText,
             confidence: 85,
             location: userLocation ? `${userLocation.lat.toFixed(4)}, ${userLocation.lng.toFixed(4)}` : 'Não informada'
-          });
+          }, currentUser?.id || 'anonymous');
         }
       }
     } catch (error) {
@@ -179,6 +187,35 @@ const App: React.FC = () => {
     }
   }, [isDarkMode]);
 
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        setIsAuthenticated(true);
+        setCurrentUser({
+          id: session.user.id,
+          email: session.user.email || '',
+          role: UserRole.CONSUMER, // Default
+          fullName: session.user.user_metadata?.full_name || 'Usuário',
+          document: '',
+          createdAt: new Date().toISOString()
+        });
+      }
+    };
+    checkSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setIsAuthenticated(true);
+      } else {
+        setIsAuthenticated(false);
+        setCurrentUser(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
   const handleLogin = (role: UserRole) => {
     setUserRole(role);
     setIsAuthenticated(true);
@@ -187,6 +224,16 @@ const App: React.FC = () => {
     else if (role === UserRole.RETAILER) setView('market');
     else if (role === UserRole.CONSUMER) setView('consumer_hub');
     else if (role === UserRole.PROFESSIONAL) setView('professional_hub');
+
+    // Mock user for dev
+    setCurrentUser({
+      id: 'dev-user',
+      email: 'dev@agrobrasil.com',
+      role: role,
+      fullName: 'Produtor Rural',
+      document: '123.456.789-00',
+      createdAt: new Date().toISOString()
+    });
   };
 
   const getHeaderTitle = () => {
@@ -210,7 +257,57 @@ const App: React.FC = () => {
     }
   };
 
-  if (!isAuthenticated) return <LoginScreen onLogin={handleLogin} />;
+  if (!isAuthenticated) {
+    if (isRegistering) {
+      return (
+        <RegistrationScreen 
+          onBack={() => setIsRegistering(false)}
+          onRegister={async (role, data) => {
+            const profile: UserProfile = {
+              id: Date.now().toString(), // In real app, this would be from Auth
+              email: data.email,
+              role: role,
+              fullName: data.fullName,
+              document: data.document,
+              phone: data.phone,
+              createdAt: new Date().toISOString(),
+              producerData: role === UserRole.PRODUCER ? {
+                farmName: data.farmName,
+                totalArea: Number(data.totalArea),
+                mainCrops: data.mainCrops?.split(',') || [],
+                location: data.location
+              } : undefined,
+              retailerData: role === UserRole.RETAILER ? {
+                storeName: data.storeName,
+                cnpj: data.document,
+                address: data.address
+              } : undefined,
+              professionalData: role === UserRole.PROFESSIONAL ? {
+                specialty: data.specialty,
+                registryNumber: data.registryNumber
+              } : undefined
+            };
+
+            const success = await dbService.saveUserProfile(profile);
+            if (success) {
+              setCurrentUser(profile);
+              setUserRole(role);
+              setIsAuthenticated(true);
+              setIsRegistering(false);
+            } else {
+              alert("Erro ao salvar perfil. Tente novamente.");
+            }
+          }}
+        />
+      );
+    }
+    return (
+      <LoginScreen 
+        onLogin={handleLogin} 
+        onGoToRegister={() => setIsRegistering(true)}
+      />
+    );
+  }
 
   return (
     <div className={`flex h-screen w-full relative overflow-hidden font-sans animate-fade-in ${isDarkMode ? 'bg-stone-950 text-stone-100' : 'bg-white text-stone-900'}`}>
@@ -289,14 +386,14 @@ const App: React.FC = () => {
         {view === 'dashboard' && <FarmDashboard />}
         {view === 'emater' && <EmaterChannel />}
         {view === 'presentation' && <SystemPresentation />}
-        {view === 'market' && <MarketView />}
+        {view === 'market' && <MarketView currentUser={currentUser} />}
         {view === 'logistics' && <LogisticsView />}
         {view === 'pos' && <RetailPOSView />}
         {view === 'retail_insights' && <RetailerInsights />}
-        {view === 'consumer_hub' && <ConsumerHub />}
-        {view === 'professional_hub' && <ProfessionalHub />}
+        {view === 'consumer_hub' && <ConsumerHub setView={setView} />}
+        {view === 'professional_hub' && <ProfessionalHub setView={setView} />}
         {view === 'settings' && <Settings isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />}
-        {view === 'registry' && <PlantRegistry />}
+        {view === 'registry' && <PlantRegistry currentUser={currentUser} />}
 
       </main>
     </div>

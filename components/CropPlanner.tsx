@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Search, Calendar, Droplets, Sprout, Bug, Shovel, Clock, CheckCircle2, ArrowRight, BarChart3, Share2, MapPin, AlertTriangle, Thermometer } from 'lucide-react';
+import { Search, Calendar, Droplets, Sprout, Bug, Shovel, Clock, CheckCircle2, ArrowRight, BarChart3, Share2, MapPin, AlertTriangle, Thermometer, Loader2 } from 'lucide-react';
 import { generateCropPlan } from '../services/geminiService';
+import { dbService } from '../services/dbService';
 import { CropPlan, UserLocation } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
@@ -13,6 +14,8 @@ const CropPlanner: React.FC<CropPlannerProps> = ({ userLocation }) => {
   const [loading, setLoading] = useState(false);
   const [plan, setPlan] = useState<CropPlan | null>(null);
   const [error, setError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
   
   // Agenda State
   const [plantingDate, setPlantingDate] = useState('');
@@ -59,6 +62,17 @@ const CropPlanner: React.FC<CropPlannerProps> = ({ userLocation }) => {
     } else {
       navigator.clipboard.writeText(shareText);
       alert('Resumo copiado para a área de transferência!');
+    }
+  };
+
+  const handleSave = async () => {
+    if (!plan) return;
+    setIsSaving(true);
+    const success = await dbService.saveCropPlan(plan);
+    setIsSaving(false);
+    if (success) {
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
     }
   };
 
@@ -179,20 +193,30 @@ const CropPlanner: React.FC<CropPlannerProps> = ({ userLocation }) => {
                 )}
               </div>
 
-              <button 
-                onClick={handleShare}
-                className="flex items-center gap-2 bg-stone-50 hover:bg-stone-100 text-stone-700 px-5 py-3 rounded-xl border border-stone-200 transition-colors group font-medium"
-                title="Compartilhar Relatório"
-              >
-                <Share2 size={18} className="text-farm-600" />
-                <span>Compartilhar</span>
-              </button>
-              <button 
-                className="flex items-center gap-2 bg-orange-600 hover:bg-orange-700 text-white px-5 py-3 rounded-xl transition-colors group font-bold shadow-lg shadow-orange-200"
-              >
-                <BarChart3 size={18} />
-                <span>Ver Potencial de Mercado</span>
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button 
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  className={`flex items-center gap-2 px-5 py-3 rounded-xl border transition-all font-medium ${saveSuccess ? 'bg-emerald-500 text-white border-emerald-600' : 'bg-stone-50 hover:bg-stone-100 text-stone-700 border-stone-200'}`}
+                >
+                  {isSaving ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle2 size={18} className={saveSuccess ? 'text-white' : 'text-farm-600'} />}
+                  <span>{saveSuccess ? 'Salvo!' : 'Salvar'}</span>
+                </button>
+                <button 
+                  onClick={handleShare}
+                  className="flex items-center gap-2 bg-stone-50 hover:bg-stone-100 text-stone-700 px-5 py-3 rounded-xl border border-stone-200 transition-colors group font-medium"
+                  title="Compartilhar Relatório"
+                >
+                  <Share2 size={18} className="text-farm-600" />
+                  <span>Compartilhar</span>
+                </button>
+                <button 
+                  className="flex items-center gap-2 bg-orange-600 hover:bg-orange-700 text-white px-5 py-3 rounded-xl transition-colors group font-bold shadow-lg shadow-orange-200"
+                >
+                  <BarChart3 size={18} />
+                  <span>Ver Potencial de Mercado</span>
+                </button>
+              </div>
             </div>
           </div>
 

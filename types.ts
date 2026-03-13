@@ -7,6 +7,38 @@ export enum UserRole {
   ADMIN = 'ADMIN'
 }
 
+export interface UserProfile {
+  id: string;
+  email: string;
+  role: UserRole;
+  fullName: string;
+  document: string; // CPF or CNPJ
+  phone?: string;
+  createdAt: string;
+  
+  // Specific fields
+  producerData?: {
+    farmName: string;
+    totalArea: number;
+    mainCrops: string[];
+    location: string;
+  };
+  retailerData?: {
+    storeName: string;
+    cnpj: string;
+    address: string;
+  };
+  professionalData?: {
+    specialty: 'Agrônomo' | 'Nutricionista' | 'Veterinário' | 'Outro';
+    registryNumber: string; // CREA, CRN, etc
+    bio?: string;
+  };
+  consumerData?: {
+    interests: string[];
+    dietaryRestrictions?: string[];
+  };
+}
+
 export enum MessageRole {
   USER = 'user',
   ASSISTANT = 'assistant',

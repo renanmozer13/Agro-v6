@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -12,7 +12,8 @@ import {
   ArrowRight,
   Info,
   BrainCircuit,
-  Filter
+  Filter,
+  X
 } from 'lucide-react';
 import { 
   LineChart, 
@@ -25,17 +26,14 @@ import {
   AreaChart,
   Area
 } from 'recharts';
-import { MarketQuote, MarketOffer } from '../types';
+import { MarketQuote, MarketOffer, UserProfile, UserRole } from '../types';
+import { getCEASAQuotes } from '../services/geminiService';
+import { dbService } from '../services/dbService';
+import { Loader2 } from 'lucide-react';
 
-// Mock Data for CEASA-RJ
-const MOCK_QUOTES: MarketQuote[] = [
-  { product: 'Tomate Saladete', price: 85.00, unit: 'Cx 20kg', trend: 'up', lastUpdate: '08/03/2026', source: 'CEASA-RJ' },
-  { product: 'Batata Inglesa', price: 120.00, unit: 'Sc 50kg', trend: 'down', lastUpdate: '08/03/2026', source: 'CEASA-RJ' },
-  { product: 'Cebola Nacional', price: 65.00, unit: 'Sc 20kg', trend: 'stable', lastUpdate: '08/03/2026', source: 'CEASA-RJ' },
-  { product: 'Pimentão Verde', price: 45.00, unit: 'Cx 10kg', trend: 'up', lastUpdate: '08/03/2026', source: 'CEASA-RJ' },
-  { product: 'Cenoura Especial', price: 70.00, unit: 'Cx 20kg', trend: 'up', lastUpdate: '08/03/2026', source: 'CEASA-RJ' },
-  { product: 'Alface Crespa', price: 25.00, unit: 'Dz', trend: 'stable', lastUpdate: '08/03/2026', source: 'CEASA-RJ' },
-];
+interface MarketViewProps {
+  currentUser?: UserProfile | null;
+}
 
 const HISTORICAL_DATA = [
   { date: '01/03', price: 78 },
@@ -48,16 +46,124 @@ const HISTORICAL_DATA = [
   { date: '08/03', price: 95 },
 ];
 
-const MarketView: React.FC = () => {
+const MarketView: React.FC<MarketViewProps> = ({ currentUser }) => {
   const [activeTab, setActiveTab] = useState<'quotes' | 'marketplace'>('quotes');
   const [searchTerm, setSearchTerm] = useState('');
+  const [quotes, setQuotes] = useState<MarketQuote[]>([]);
+  const [offers, setOffers] = useState<MarketOffer[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isAddingOffer, setIsAddingOffer] = useState(false);
+
+  // Fetch quotes
+  useEffect(() => {
+    const fetchQuotes = async () => {
+      setIsLoading(true);
+      const data = await getCEASAQuotes();
+      if (data && data.length > 0) {
+        setQuotes(data);
+      } else {
+        // Fallback to mock if API fails
+        setQuotes([
+          { product: 'Tomate Saladete', price: 85.00, unit: 'Cx 20kg', trend: 'up', lastUpdate: '08/03/2026', source: 'CEASA-RJ' },
+          { product: 'Batata Inglesa', price: 120.00, unit: 'Sc 50kg', trend: 'down', lastUpdate: '08/03/2026', source: 'CEASA-RJ' },
+          { product: 'Cebola Nacional', price: 65.00, unit: 'Sc 20kg', trend: 'stable', lastUpdate: '08/03/2026', source: 'CEASA-RJ' },
+        ]);
+      }
+      setIsLoading(false);
+    };
+    fetchQuotes();
+  }, []);
+
+  // Fetch offers
+  useEffect(() => {
+    const fetchOffers = async () => {
+      const data = await dbService.getMarketOffers();
+      setOffers(data);
+    };
+    fetchOffers();
+  }, [activeTab]);
+
+  const handleAddOffer = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!currentUser) return;
+
+    const formData = new FormData(e.currentTarget);
+    const newOffer: Omit<MarketOffer, 'id' | 'createdAt'> = {
+      producerId: currentUser.id,
+      product: formData.get('product') as string,
+      quantity: Number(formData.get('quantity')),
+      unit: formData.get('unit') as string,
+      price: Number(formData.get('price')),
+      location: formData.get('location') as string,
+      isOrganic: formData.get('isOrganic') === 'on',
+      status: 'available'
+    };
+
+    const success = await dbService.saveMarketOffer(newOffer);
+    if (success) {
+      setIsAddingOffer(false);
+      // Refresh offers
+      const data = await dbService.getMarketOffers();
+      setOffers(data);
+    } else {
+      alert("Erro ao salvar oferta.");
+    }
+  };
 
   const filteredQuotes = useMemo(() => {
-    return MOCK_QUOTES.filter(q => q.product.toLowerCase().includes(searchTerm.toLowerCase()));
-  }, [searchTerm]);
+    return quotes.filter(q => q.product.toLowerCase().includes(searchTerm.toLowerCase()));
+  }, [searchTerm, quotes]);
 
   return (
     <div className="flex flex-col h-full bg-[#FDFBF7] overflow-hidden">
+      {/* Add Offer Modal */}
+      {isAddingOffer && (
+        <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200">
+            <div className="p-6 border-b border-stone-100 flex justify-between items-center bg-stone-50">
+              <h3 className="font-black text-stone-900 uppercase tracking-widest">Anunciar Safra</h3>
+              <button onClick={() => setIsAddingOffer(false)} className="text-stone-400 hover:text-stone-600 transition-colors"><X size={24} /></button>
+            </div>
+            <form onSubmit={handleAddOffer} className="p-6 space-y-4">
+              <div>
+                <label className="block text-[10px] font-black text-stone-400 uppercase tracking-widest mb-1">Produto</label>
+                <input name="product" required className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-orange-500 outline-none transition-all" placeholder="Ex: Milho Verde" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-black text-stone-400 uppercase tracking-widest mb-1">Quantidade</label>
+                  <input name="quantity" type="number" required className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-orange-500 outline-none transition-all" placeholder="500" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-stone-400 uppercase tracking-widest mb-1">Unidade</label>
+                  <select name="unit" className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-orange-500 outline-none transition-all">
+                    <option value="kg">kg</option>
+                    <option value="ton">Tonelada</option>
+                    <option value="cx">Caixa</option>
+                    <option value="sc">Saco</option>
+                    <option value="dz">Dúzia</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-stone-400 uppercase tracking-widest mb-1">Preço Unitário (R$)</label>
+                <input name="price" type="number" step="0.01" required className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-orange-500 outline-none transition-all" placeholder="2.50" />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-stone-400 uppercase tracking-widest mb-1">Localização</label>
+                <input name="location" required className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-orange-500 outline-none transition-all" placeholder="Ex: Cachoeiras de Macacu, RJ" />
+              </div>
+              <div className="flex items-center gap-3 py-2">
+                <input type="checkbox" name="isOrganic" id="isOrganic" className="w-5 h-5 rounded border-stone-300 text-green-600 focus:ring-green-500" />
+                <label htmlFor="isOrganic" className="text-sm font-bold text-stone-700">Produção Orgânica</label>
+              </div>
+              <button type="submit" className="w-full bg-orange-600 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-sm hover:bg-orange-700 transition-all shadow-lg shadow-orange-100 mt-4">
+                Publicar Oferta
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <header className="p-6 border-b border-stone-200 bg-white/50 backdrop-blur-md flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -114,18 +220,27 @@ const MarketView: React.FC = () => {
                   <span className="text-right">Tendência</span>
                 </div>
                 <div className="divide-y divide-stone-100">
-                  {filteredQuotes.map((quote, idx) => (
-                    <div key={idx} className="grid grid-cols-4 p-4 items-center hover:bg-stone-50 transition-colors cursor-pointer group">
-                      <span className="text-sm font-bold text-stone-800 group-hover:text-orange-600 transition-colors">{quote.product}</span>
-                      <span className="text-center font-mono text-sm font-bold text-stone-600">R$ {quote.price.toFixed(2)}</span>
-                      <span className="text-center text-xs font-medium text-stone-500">{quote.unit}</span>
-                      <div className="flex justify-end">
-                        {quote.trend === 'up' && <div className="flex items-center gap-1 text-red-500 font-bold text-xs bg-red-50 px-2 py-1 rounded-full"><TrendingUp size={12}/> ALTA</div>}
-                        {quote.trend === 'down' && <div className="flex items-center gap-1 text-green-600 font-bold text-xs bg-green-50 px-2 py-1 rounded-full"><TrendingDown size={12}/> BAIXA</div>}
-                        {quote.trend === 'stable' && <div className="flex items-center gap-1 text-stone-400 font-bold text-xs bg-stone-50 px-2 py-1 rounded-full"><Minus size={12}/> ESTÁVEL</div>}
-                      </div>
+                  {isLoading ? (
+                    <div className="p-12 flex flex-col items-center justify-center text-stone-400 gap-3">
+                      <Loader2 className="animate-spin" size={32} />
+                      <p className="text-sm font-medium">Buscando cotações reais no CEASA...</p>
                     </div>
-                  ))}
+                  ) : filteredQuotes.length > 0 ? (
+                    filteredQuotes.map((quote, idx) => (
+                      <div key={idx} className="grid grid-cols-4 p-4 items-center hover:bg-stone-50 transition-colors cursor-pointer group">
+                        <span className="text-sm font-bold text-stone-800 group-hover:text-orange-600 transition-colors">{quote.product}</span>
+                        <span className="text-center font-mono text-sm font-bold text-stone-600">R$ {quote.price.toFixed(2)}</span>
+                        <span className="text-center text-xs font-medium text-stone-500">{quote.unit}</span>
+                        <div className="flex justify-end">
+                          {quote.trend === 'up' && <div className="flex items-center gap-1 text-red-500 font-bold text-xs bg-red-50 px-2 py-1 rounded-full"><TrendingUp size={12}/> ALTA</div>}
+                          {quote.trend === 'down' && <div className="flex items-center gap-1 text-green-600 font-bold text-xs bg-green-50 px-2 py-1 rounded-full"><TrendingDown size={12}/> BAIXA</div>}
+                          {quote.trend === 'stable' && <div className="flex items-center gap-1 text-stone-400 font-bold text-xs bg-stone-50 px-2 py-1 rounded-full"><Minus size={12}/> ESTÁVEL</div>}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="p-12 text-center text-stone-400 text-sm">Nenhuma cotação encontrada.</div>
+                  )}
                 </div>
               </div>
 
@@ -208,8 +323,8 @@ const MarketView: React.FC = () => {
                     <Truck size={24} />
                   </div>
                   <div>
-                    <div className="text-[10px] font-black text-stone-400 uppercase tracking-widest">Minhas Ofertas</div>
-                    <div className="text-xl font-black text-stone-900">12 Ativas</div>
+                    <div className="text-[10px] font-black text-stone-400 uppercase tracking-widest">Ofertas Ativas</div>
+                    <div className="text-xl font-black text-stone-900">{offers.length}</div>
                   </div>
                 </div>
                 <div className="bg-white border border-stone-200 p-4 rounded-2xl shadow-sm flex items-center gap-4">
@@ -222,47 +337,62 @@ const MarketView: React.FC = () => {
                   </div>
                 </div>
               </div>
-              <button className="flex items-center gap-2 px-6 py-3 bg-stone-900 text-white rounded-2xl font-bold text-sm hover:bg-stone-800 transition-all shadow-lg shadow-stone-200">
-                <Plus size={18} />
-                ANUNCIAR MINHA SAFRA
-              </button>
+              {currentUser?.role === UserRole.PRODUCER && (
+                <button 
+                  onClick={() => setIsAddingOffer(true)}
+                  className="flex items-center gap-2 px-6 py-3 bg-stone-900 text-white rounded-2xl font-bold text-sm hover:bg-stone-800 transition-all shadow-lg shadow-stone-200"
+                >
+                  <Plus size={18} />
+                  ANUNCIAR MINHA SAFRA
+                </button>
+              )}
             </div>
 
-            {/* Marketplace Grid - Recipe 10 style (Bold Background Color / List) */}
+            {/* Marketplace Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {/* Producer Offers */}
               <div className="space-y-6">
                 <h3 className="text-sm font-black text-stone-900 uppercase tracking-widest flex items-center gap-2">
                   <Truck size={18} className="text-green-500" />
-                  Ofertas de Produtores (Cachoeiras de Macacu)
+                  Ofertas de Produtores (Região)
                 </h3>
                 <div className="space-y-4">
-                  {[1, 2, 3].map(i => (
-                    <div key={i} className="bg-white border border-stone-200 rounded-2xl p-5 hover:border-green-500 transition-all cursor-pointer group shadow-sm">
-                      <div className="flex justify-between items-start mb-4">
-                        <div>
-                          <h4 className="text-lg font-black text-stone-900 group-hover:text-green-600 transition-colors">Milho Verde Especial</h4>
-                          <p className="text-xs text-stone-500 font-medium">Sítio Boa Esperança • 5km de distância</p>
-                        </div>
-                        <span className="px-3 py-1 bg-green-100 text-green-700 text-[10px] font-black rounded-full uppercase">Disponível</span>
-                      </div>
-                      <div className="flex items-center justify-between border-t border-stone-100 pt-4">
-                        <div className="flex gap-4">
+                  {offers.length > 0 ? (
+                    offers.map(offer => (
+                      <div key={offer.id} className="bg-white border border-stone-200 rounded-2xl p-5 hover:border-green-500 transition-all cursor-pointer group shadow-sm">
+                        <div className="flex justify-between items-start mb-4">
                           <div>
-                            <div className="text-[10px] font-bold text-stone-400 uppercase">Qtd</div>
-                            <div className="text-sm font-black">500kg</div>
+                            <h4 className="text-lg font-black text-stone-900 group-hover:text-green-600 transition-colors">{offer.product}</h4>
+                            <p className="text-xs text-stone-500 font-medium">{offer.location} • {offer.isOrganic ? 'Orgânico' : 'Convencional'}</p>
                           </div>
-                          <div>
-                            <div className="text-[10px] font-bold text-stone-400 uppercase">Preço</div>
-                            <div className="text-sm font-black text-green-600">R$ 2,50/kg</div>
-                          </div>
+                          <span className={`px-3 py-1 text-[10px] font-black rounded-full uppercase ${
+                            offer.status === 'available' ? 'bg-green-100 text-green-700' : 'bg-stone-100 text-stone-500'
+                          }`}>
+                            {offer.status === 'available' ? 'Disponível' : 'Vendido'}
+                          </span>
                         </div>
-                        <button className="p-2 bg-stone-50 rounded-xl text-stone-400 group-hover:text-green-600 group-hover:bg-green-50 transition-all">
-                          <ArrowRight size={20} />
-                        </button>
+                        <div className="flex items-center justify-between border-t border-stone-100 pt-4">
+                          <div className="flex gap-4">
+                            <div>
+                              <div className="text-[10px] font-bold text-stone-400 uppercase">Qtd</div>
+                              <div className="text-sm font-black">{offer.quantity}{offer.unit}</div>
+                            </div>
+                            <div>
+                              <div className="text-[10px] font-bold text-stone-400 uppercase">Preço</div>
+                              <div className="text-sm font-black text-green-600">R$ {offer.price.toFixed(2)}/{offer.unit}</div>
+                            </div>
+                          </div>
+                          <button className="p-2 bg-stone-50 rounded-xl text-stone-400 group-hover:text-green-600 group-hover:bg-green-50 transition-all">
+                            <ArrowRight size={20} />
+                          </button>
+                        </div>
                       </div>
+                    ))
+                  ) : (
+                    <div className="p-12 text-center text-stone-400 text-sm bg-white rounded-2xl border border-dashed border-stone-200">
+                      Nenhuma oferta ativa no momento.
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
 

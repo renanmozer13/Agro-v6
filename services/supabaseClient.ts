@@ -1,26 +1,31 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// Configurações padrão (fallback) caso as variáveis de ambiente não estejam definidas
-const DEFAULT_URL = 'https://hoepznsyzdlrzzlrlurp.supabase.co';
-const DEFAULT_KEY = 'sb_publishable_ne5Px1teeHCX7KS59_qKzA_J8hucLEg';
+// Tenta obter das variáveis de ambiente do Vite
+const rawUrl = import.meta.env.VITE_SUPABASE_URL;
+const rawKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Função para validar se uma string é uma URL válida do Supabase
-const isValidUrl = (url: any): url is string => {
-  return typeof url === 'string' && url.startsWith('http');
+// Fallbacks seguros
+const DEFAULT_URL = 'https://hoepznsyzdlrzzlrlurp.supabase.co';
+const DEFAULT_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhvZXB6bnN5emRscnp6bHJsdXJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMxNzE3MzgsImV4cCI6MjA3ODc0NzczOH0.0W-dZiHbd4PIQcB8FDZIBgdNVlAtKPIBaUvbSdCVlNc';
+
+// Validação da URL
+const isValidUrl = (url: string | undefined): url is string => {
+    if (!url) return false;
+    try {
+        new URL(url);
+        return true;
+    } catch {
+        return false;
+    }
 };
 
-// Tenta obter das variáveis de ambiente do Vite ou do Process
-const envUrl = import.meta.env.VITE_SUPABASE_URL || (typeof process !== 'undefined' ? process.env.VITE_SUPABASE_URL : undefined);
-const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY || (typeof process !== 'undefined' ? process.env.VITE_SUPABASE_ANON_KEY : undefined);
+const SUPABASE_URL = isValidUrl(rawUrl) ? rawUrl : DEFAULT_URL;
+const SUPABASE_KEY = (rawKey && rawKey.length > 10) ? rawKey : DEFAULT_KEY;
 
-// Garante que a URL seja válida, caso contrário usa o fallback
-const SUPABASE_URL = isValidUrl(envUrl) ? envUrl : DEFAULT_URL;
-const SUPABASE_KEY = (envKey && envKey !== 'undefined' && envKey !== '') ? envKey : DEFAULT_KEY;
-
-if (!isValidUrl(envUrl) || !envKey) {
-    console.warn("AVISO: Credenciais do Supabase não encontradas ou inválidas no ambiente. Usando fallbacks de segurança.");
+if (!isValidUrl(rawUrl)) {
+    console.info("Supabase URL não configurada ou inválida nas variáveis de ambiente. Usando fallback.");
 }
 
-// Inicializa o cliente garantindo que a URL seja válida
+// Inicializa o cliente
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
